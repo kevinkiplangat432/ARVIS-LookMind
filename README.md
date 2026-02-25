@@ -161,6 +161,97 @@ The SDK is intended for:
 - **Multi-Agent Orchestration**: Scaling SDK integration to handle large fleets of agents concurrently.
 - **Cross-Framework Compatibility**: Support for LangChain, AutoGen, custom agent frameworks, and multi-LLM environments.
 
+## Documentation
+
+For comprehensive technical documentation, architecture details, and implementation guides, see [DOCUMENTATION.md](./DOCUMENTATION.md).
+
+### Quick Links
+
+- [Technical Architecture](./DOCUMENTATION.md#technical-architecture)
+- [SDK Architecture & Design](./DOCUMENTATION.md#sdk-architecture-and-design)
+- [Event Architecture](./DOCUMENTATION.md#event-architecture)
+- [Risk Engine Strategy](./DOCUMENTATION.md#risk-engine-strategy)
+- [Policy Engine](./DOCUMENTATION.md#policy-engine-architecture)
+- [API Reference](./DOCUMENTATION.md#api-design)
+- [Database Schema](./DOCUMENTATION.md#database-models-and-schema)
+- [Security Model](./DOCUMENTATION.md#security-model)
+- [Testing Strategy](./DOCUMENTATION.md#testing-strategy)
+- [Scalability & Performance](./DOCUMENTATION.md#scalability-and-performance)
+
+## Getting Started
+
+### Installation
+
+```bash
+pip install ai-control-layer
+```
+
+### Quick Start
+
+```python
+from ai_control import ControlLayer
+
+# Initialize the control layer
+control = ControlLayer(
+    api_key="your_api_key",
+    org_id="your_org_id"
+)
+
+# Wrap your agent function
+@control.monitor(agent_id="my-agent")
+def my_agent_function(input_data):
+    # Your agent logic here
+    return process(input_data)
+
+# Execute with automatic monitoring
+result = my_agent_function("user request")
+```
+
+### LangChain Integration
+
+```python
+from langchain.callbacks import ControlLayerCallback
+from ai_control import ControlLayer
+
+control = ControlLayer(api_key="...", org_id="...")
+callback = ControlLayerCallback(control, agent_id="langchain-agent")
+
+# Use with your LangChain agent
+agent.run("your query", callbacks=[callback])
+```
+
+## Project Status
+
+**Current Version**: 0.1.0 (Alpha)  
+**Status**: Active Development
+
+This is a startup-level project in early development. Contributions and feedback are welcome.
+
+## Contributing
+
+We welcome contributions! Please see our contribution guidelines:
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## License
+
+MIT License - see [LICENSE](./LICENSE) file for details.
+
+## Contact
+
+For questions, feedback, or support:
+- GitHub Issues: [Create an issue](https://github.com/yourusername/ai-control-layer/issues)
+- Email: contact@aicontrollayer.com
+- Documentation: [DOCUMENTATION.md](./DOCUMENTATION.md)
+
+## Acknowledgments
+
+Built with modern Python async frameworks and designed for the AI agent ecosystem.i-LLM environments.
+
 ## Conclusion
 
 The AI Control Layer SDK is a foundational tool for enterprises and developers seeking to govern, monitor, and manage autonomous AI agents. By providing structured logging, risk evaluation, policy enforcement, and observability hooks, the SDK enables safe, auditable, and compliant AI operations.
