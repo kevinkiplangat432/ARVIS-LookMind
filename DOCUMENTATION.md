@@ -4527,16 +4527,16 @@ This documentation provides a comprehensive blueprint for building the AI Contro
 
 ### Resources
 
-- **GitHub Repository**: [Link to repo]
-- **Documentation Site**: [Link to docs]
-- **API Reference**: [Link to API docs]
-- **Community Forum**: [Link to forum]
-- **Support Email**: support@aicontrollayer.com
+- **GitHub Repository**: [https://github.com/kevinkiplangat432/agents-control-infra-start-up-level-infra.git]
+- **Documentation Site**: []
+- **API Reference**: []
+- **Community Forum**: []
+- **Support Email**: kiplangatkevin335@gmail.com
 
 ---
 
 **Document Version**: 1.0  
 **Last Updated**: 2024-01-15  
-**Maintained By**: Engineering Team  
+**Maintained By**: Kevin email:kiplangatkevin335@gmail.com
 **Review Cycle**: Monthly
 
