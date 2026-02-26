@@ -1,4 +1,6 @@
-# AI Control Layer SDK
+# AI Control Layer SDK 
+
+> **Related Repository**: This is the backend repository. For the frontend implementation, see [AI Control Layer Frontend](https://github.com/kevinkiplangat432/agents-control-infra-start-up-level-infra-frontend.git)
 
 ## Overview
 
