@@ -244,8 +244,8 @@ MIT License - see [LICENSE](./LICENSE) file for details.
 ## Contact
 
 For questions, feedback, or support:
-- GitHub Issues: [Create an issue](https://github.com/yourusername/ai-control-layer/issues)
-- Email: contact@aicontrollayer.com
+- GitHub Issues: [Create an issue](https://github.com/kevinkiplangat432/agents-control-infra-start-up-level-infra-backend.git)
+- Email: kiplangatkevin335@gmail.com
 - Documentation: [DOCUMENTATION.md](./DOCUMENTATION.md)
 
 ## Acknowledgments
