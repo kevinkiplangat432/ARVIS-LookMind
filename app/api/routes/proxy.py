@@ -1,9 +1,12 @@
 import time
 import uuid
 import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
 from app.core.config import settings
+from app.db.database import get_db
+from app.db.models import InteractionLog
 
 router = APIRouter()
 
@@ -30,11 +33,7 @@ async def call_groq(messages: list, model: str, max_tokens: int) -> dict:
         "Authorization": f"Bearer {settings.groq_api_key}",
         "Content-Type": "application/json",
     }
-    body = {
-        "model": model,
-        "max_tokens": max_tokens,
-        "messages": messages,
-    }
+    body = {"model": model, "max_tokens": max_tokens, "messages": messages}
     async with httpx.AsyncClient(timeout=60.0) as client:
         try:
             response = await client.post(GROQ_API_URL, headers=headers, json=body)
@@ -89,11 +88,12 @@ PROVIDER_DEFAULTS = {
 
 
 @router.post("/proxy/chat")
-async def proxy_chat(payload: ProxyRequest):
+async def proxy_chat(payload: ProxyRequest, db: AsyncSession = Depends(get_db)):
     request_id = str(uuid.uuid4())
     session_id = payload.session_id or str(uuid.uuid4())
     provider = payload.provider or settings.default_provider
     model = payload.model or PROVIDER_DEFAULTS.get(provider, "llama-3.1-8b-instant")
+    prompt = payload.messages[-1].content
 
     messages = [m.model_dump() for m in payload.messages]
     started_at = time.time()
@@ -107,6 +107,20 @@ async def proxy_chat(payload: ProxyRequest):
 
     latency_ms = round((time.time() - started_at) * 1000)
 
+    log = InteractionLog(
+        request_id=request_id,
+        session_id=session_id,
+        provider=provider,
+        model=model,
+        prompt=prompt,
+        response=result["text"],
+        input_tokens=result["input_tokens"],
+        output_tokens=result["output_tokens"],
+        latency_ms=latency_ms,
+    )
+    db.add(log)
+    await db.commit()
+
     print(f"""
 --- Sentinel Intercepted ---
 request_id   : {request_id}
@@ -116,6 +130,7 @@ model        : {model}
 input_tokens : {result['input_tokens']}
 output_tokens: {result['output_tokens']}
 latency_ms   : {latency_ms}
+logged to db : ✓
 ----------------------------
     """)
 

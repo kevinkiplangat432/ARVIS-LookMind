@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
     groq_api_key: str = ""
     default_provider: str = "groq"
+    database_url: str = ""
 
     class Config:
         env_file = ".env"
