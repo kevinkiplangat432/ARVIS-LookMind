@@ -1,263 +1,423 @@
-# AI Control Layer SDK 
+# Sovereign AI Proxy
 
-> **Related Repository**: This is the backend repository. For the frontend implementation, see [AI Control Layer Frontend](https://github.com/kevinkiplangat432/agents-control-infra-start-up-level-infra-frontend.git)
+> **Version**: 0.1.0 (Alpha) · **Status**: Active Development  
+> **Compliance**: Kenya Data Protection Act 2019 · Data residency enforced at the infrastructure level
 
 ## Overview
 
-The AI Control Layer SDK is a middleware and governance platform designed to provide enterprises and developers with a robust, auditable, and secure framework to manage autonomous AI agents. Unlike traditional AI tools that focus on agent creation or productivity applications, this SDK is specifically engineered to provide control, visibility, and risk management across multiple AI agents operating within an organization. It enables organizations to monitor, evaluate, and enforce policy constraints on AI-driven actions in real time, providing transparency, compliance, and operational safety.
+Sovereign AI Proxy is a transparent, real-time governance layer that sits between an organisation's systems and any LLM API. Every prompt and response passes through the proxy — PII is detected and masked before data leaves the organisation, policy rules are enforced before the request is forwarded, and a complete audit trail is written to Postgres for compliance and reporting.
 
-This SDK serves as the foundational layer for a future proxy-based control system, enabling large-scale observability and governance over distributed AI agents. The SDK-first approach allows developers and early adopters to integrate the governance layer directly into their agents, creating hooks for logging, risk evaluation, policy enforcement, and event streaming.
+The system is built as a monorepo containing three independent services: a high-performance Go proxy engine, a FastAPI management API, and a React control dashboard. They share a Postgres database and a Redis cache but never call each other's code directly — making each service independently deployable and scalable.
 
-## Product Vision
+---
 
-Organizations increasingly deploy autonomous AI agents to perform tasks such as:
+## Why This Exists
 
-- Sending emails and messages
-- Approving transactions and refunds
-- Generating and validating contracts
-- Analyzing and reporting on data
-- Performing decision-making tasks internally
-- Interfacing with customers autonomously
+Enterprises deploying LLM-powered applications face a consistent set of risks:
 
-While these agents increase efficiency, they also introduce risk:
+- Sensitive data — customer identifiers, financial references, personal information — leaking into third-party AI APIs
+- No visibility into what employees or internal systems are sending to LLMs
+- No mechanism to enforce token budgets, block topics, or terminate unsafe responses in real time
+- No audit trail for regulatory compliance or internal governance
 
-- Hallucinations or incorrect outputs
-- Unauthorized data access or leaks
-- Overspending or misallocating resources
-- Actions that violate organizational policies
-- Compliance and regulatory exposure
+Sovereign AI Proxy addresses all of these at the infrastructure level, requiring zero changes to existing applications. A company redirects their LLM base URL to the proxy endpoint — everything else works as before, but every request is now governed, logged, and auditable.
 
-### Solution
+---
 
-The AI Control Layer SDK addresses these challenges by providing:
+## Architecture
 
-- **Interception and Logging**: All agent actions, including prompt creation, LLM calls, tool usage, and decisions, are captured in structured logs.
-- **Event Streaming**: Each action is converted into events that are sent to asynchronous pipelines for processing, analytics, and persistence.
-- **Risk Evaluation**: Real-time scoring of agent outputs based on hallucination probability, policy violation likelihood, toxicity, PII leakage, and other domain-specific metrics.
-- **Policy Enforcement**: RBAC and rule-based constraints allow organizations to enforce operational boundaries and approval workflows.
-- **Telemetry and Observability Hooks**: Exposes structured metrics and logs for visualization, analytics, and operational monitoring.
-- **Override and Kill Switch Mechanisms**: Immediate intervention capability for anomalous or unsafe agent actions.
+```
+Client Application
+       │
+       ▼
+┌──────────────────────────────────────────────┐
+│            Go Proxy Engine (:8080)           │
+│                                              │
+│  1. Authenticate company API key             │
+│  2. Read Redis — budget + policy rules       │
+│  3. Scan request for PII → tokenise          │
+│  4. Forward clean request to LLM API         │
+│  5. Monitor response stream → kill switch    │
+│  6. Write audit log to Postgres (async)      │
+└──────────────────────────────────────────────┘
+       │                         │
+       ▼                         ▼
+  LLM API                   PostgreSQL
+  (OpenAI /               (audit_logs,
+   Anthropic /             pii_tokens,
+   any compatible)         companies)
+                                │
+                                ▼
+                     ┌──────────────────────┐
+                     │  FastAPI Dashboard   │
+                     │  (:8000)             │
+                     │  Auth · Rules        │
+                     │  Logs · Reports      │
+                     └──────────────────────┘
+                                │
+                                ▼
+                     ┌──────────────────────┐
+                     │   React Frontend     │
+                     │   (:3000)            │
+                     │  Live feed · Reports │
+                     │  Kill switch · Rules │
+                     └──────────────────────┘
+```
 
-This approach provides a centralized governance layer without requiring changes to the underlying AI agent frameworks, enabling enterprises to manage risk and compliance proactively.
+**Service communication rules:**
+- Go reads policy rules from Redis on every request (< 1ms, hot path)
+- FastAPI writes rule updates to Redis — Go enforces them on the next request, no restart needed
+- Go writes audit logs to Postgres asynchronously — never on the critical path
+- FastAPI reads from Postgres to power the dashboard — it never touches the proxy hot path
+- React calls FastAPI REST endpoints — standard JSON over HTTP
+- Go and FastAPI share a database. They never call each other directly
 
-## Goals and Objectives
+---
 
-The AI Control Layer SDK is designed to achieve the following objectives:
+## Repository Structure
 
-- **Enterprise-Grade Governance**: Enable organizations to monitor and enforce policies across all deployed AI agents.
-- **Traceability and Auditability**: Record and maintain structured logs of all agent actions for audit purposes.
-- **Real-Time Risk Management**: Evaluate agent outputs in real time, applying validation rules and flagging or blocking high-risk actions.
-- **Developer Integration**: Provide SDK hooks that integrate seamlessly with existing AI agent frameworks such as LangChain and AutoGen.
-- **Scalability**: Support thousands of concurrent agent actions without compromising performance or reliability.
-- **Security and Privacy**: Ensure sensitive agent logs and telemetry are securely stored and accessible only to authorized users.
-- **Extensibility**: Facilitate future extensions, including proxy-based centralized control and enterprise dashboard integrations.
+```
+sovereign-proxy/              ← monorepo root
+│
+├── proxy/                    ← Go engine (the core product)
+│   ├── main.go               ← entry point, HTTP server
+│   ├── go.mod / go.sum       ← dependencies
+│   ├── interceptor/
+│   │   └── proxy.go          ← reverse proxy logic (httputil.ReverseProxy)
+│   ├── masking/
+│   │   └── pii.go            ← Kenyan ID, M-PESA, KRA PIN detection + tokenisation
+│   ├── policy/
+│   │   └── rules.go          ← Redis-backed budget and rule enforcement
+│   ├── audit/
+│   │   └── logger.go         ← async audit log writer to Postgres
+│   ├── stream/
+│   │   └── monitor.go        ← token stream monitor, kill switch trigger
+│   └── Dockerfile
+│
+├── dashboard/                ← FastAPI management API
+│   ├── main.py               ← entry point, route registration
+│   ├── requirements.txt
+│   ├── routes/
+│   │   ├── auth.py           ← POST /auth/login — issues JWT tokens
+│   │   ├── companies.py      ← POST /company/new, PUT /company/rules
+│   │   ├── logs.py           ← GET /logs — audit log reader
+│   │   └── reports.py        ← GET /report — PII blocks, cost aggregates
+│   ├── models/
+│   │   ├── company.py        ← Pydantic: company data shape
+│   │   └── log_entry.py      ← Pydantic: audit log row shape
+│   ├── db/
+│   │   └── connection.py     ← asyncpg connection pool
+│   └── Dockerfile
+│
+├── frontend/                 ← React control dashboard
+│   ├── src/
+│   │   ├── App.jsx           ← root component, routing
+│   │   ├── pages/
+│   │   │   ├── Login.jsx     ← company manager login
+│   │   │   ├── LiveFeed.jsx  ← real-time traffic table
+│   │   │   ├── Report.jsx    ← compliance report view
+│   │   │   └── Settings.jsx  ← budget and rule configuration
+│   │   └── components/
+│   │       ├── KillSwitchBadge.jsx  ← alert badge when kill switch fires
+│   │       └── PIICounter.jsx       ← running count of PII blocks today
+│   ├── package.json
+│   └── Dockerfile
+│
+├── infra/                            ← shared infrastructure
+│   ├── docker-compose.yml            ← single command local development
+│   ├── docker-compose.prod.yml       ← production overrides
+│   ├── nginx/
+│   │   └── nginx.conf                ← routes traffic to Go and FastAPI by subdomain
+│   ├── redis/
+│   │   └── redis.conf                ← persistence settings, memory limits
+│   └── postgres/
+│       └── schema.sql                ← single source of truth for all tables
+│
+├── .env.example              ← all required environment variables with placeholders
+├── .gitignore
+├── Makefile                  ← make dev · make test · make deploy
+└── README.md
+```
 
-## Technical Architecture
+---
 
-The SDK is designed as a layered system, allowing modularity, flexibility, and scalability. The architecture is divided into five primary components:
+## Core Features
 
-### 1. Interception Layer (SDK)
+### PII Masking and Tokenisation
+Detects and replaces sensitive identifiers before any data is forwarded to an external LLM API. Supported patterns include Kenyan National ID numbers, M-PESA phone references, and KRA PIN formats. The original value is stored encrypted in Postgres; the LLM receives a reversible token such as `[KENYAN_ID_TOKEN_1]`. The real value never leaves the organisation's infrastructure.
 
-- Wraps AI agent calls, including LLM interactions, tool usage, and decision-making logic.
-- Provides hooks for logging prompts, responses, token usage, and metadata.
-- Ensures that all actions pass through a standardized telemetry and validation pipeline.
-- Enables asynchronous event emission for downstream processing.
+### Real-Time Kill Switch
+The Go engine reads the LLM response as a token stream. If a trigger condition is met mid-response — a policy violation, a blocked topic, a budget threshold breach — the connection is terminated immediately. The partial response is discarded and the event is logged with a violation reason.
 
-### 2. Event Streaming System
+### Redis-Backed Policy Engine
+Each company's rules — daily token budget, allowed models, blocked topics — are stored in Redis and read on every request in under 1ms. When a company manager updates rules via the dashboard, FastAPI writes to Redis and the proxy enforces the new rules on the very next request with no restart required.
 
-Converts agent actions into structured events, such as:
+### Immutable Audit Logs
+Every request the proxy handles produces an audit log row in Postgres: timestamp, company ID, PII detected flag, PII type, kill switch flag, tokens used, model, and violation reason. Logs are written asynchronously and are never modified after creation.
 
-- `PROMPT_SENT`
-- `RESPONSE_RECEIVED`
-- `TOOL_CALLED`
-- `TOOL_RESULT`
-- `AGENT_LOOP_ITERATION`
+### Multi-Tenant Company Isolation
+Each company is issued a unique API key. All logs, rules, PII tokens, and reports are scoped to that company's ID. One deployment serves multiple organisations with complete data isolation between tenants.
 
-Events are pushed into asynchronous queues, such as Redis or Kafka, for real-time processing. Supports observability, analytics, and persistence for compliance and audit purposes.
+### Compliance Reporting
+The FastAPI dashboard aggregates audit log data into compliance reports: total PII blocks, PII types detected, kill switch events, token spend by day, and estimated cost saved by blocking unsafe requests.
 
-### 3. Risk Engine
+---
 
-Evaluates agent outputs using multiple metrics:
+## Database Schema
 
-- Hallucination detection heuristics
-- Policy violation probability
-- Toxicity and content safety
-- PII leakage detection
-- Confidence scoring
+Defined in `infra/postgres/schema.sql` — the single source of truth for all tables. Runs automatically on first Postgres start via Docker.
 
-Provides real-time action recommendations, including blocking, approval requests, or reruns. Can integrate external knowledge bases for validation.
+```sql
+-- Companies registered on the platform
+CREATE TABLE companies (
+    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name          TEXT NOT NULL,
+    api_key       TEXT UNIQUE NOT NULL,       -- hashed value of X-Company-Key header
+    budget_daily  INTEGER DEFAULT 10000,      -- max tokens per day
+    created_at    TIMESTAMPTZ DEFAULT NOW()
+);
 
-### 4. Policy Engine
+-- Every request the proxy handles
+CREATE TABLE audit_logs (
+    id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    company_id       UUID REFERENCES companies(id),
+    timestamp        TIMESTAMPTZ DEFAULT NOW(),
+    pii_detected     BOOLEAN DEFAULT FALSE,
+    pii_type         TEXT,                    -- 'KENYAN_ID' | 'MPESA_PHONE' | 'KRA_PIN'
+    kill_switch      BOOLEAN DEFAULT FALSE,
+    tokens_used      INTEGER,
+    model            TEXT,
+    violation_reason TEXT
+);
 
-Implements RBAC (Role-Based Access Control) and rule-based constraints. Allows organizations to define operational policies, such as:
+-- PII token map — original values never leave the organisation
+CREATE TABLE pii_tokens (
+    token          TEXT PRIMARY KEY,          -- '[KENYAN_ID_TOKEN_1]'
+    original_value TEXT NOT NULL,             -- encrypted at rest
+    company_id     UUID REFERENCES companies(id),
+    created_at     TIMESTAMPTZ DEFAULT NOW()
+);
 
-- Maximum refund amounts
-- Data access restrictions
-- Action approval workflows
+-- Per-company policy rules (also cached in Redis)
+CREATE TABLE company_rules (
+    company_id      UUID REFERENCES companies(id) PRIMARY KEY,
+    blocked_topics  TEXT[],
+    allowed_models  TEXT[],
+    budget_daily    INTEGER DEFAULT 10000,
+    updated_at      TIMESTAMPTZ DEFAULT NOW()
+);
 
-Enforces policies at the SDK level to ensure compliance before agent actions are executed.
+-- Indexes for fast dashboard queries
+CREATE INDEX idx_logs_company   ON audit_logs(company_id);
+CREATE INDEX idx_logs_timestamp ON audit_logs(timestamp DESC);
+CREATE INDEX idx_logs_pii       ON audit_logs(pii_detected) WHERE pii_detected = TRUE;
+```
 
-### 5. Observability and Telemetry
-
-- Provides structured metrics and logs for monitoring agent behavior and performance.
-- Supports integration with dashboards for visualizing execution trees, risk heatmaps, and cost breakdowns.
-- Offers hooks for integrating with enterprise observability tools or custom monitoring systems.
-- Enables anomaly detection and auditing for security and compliance requirements.
-
-## Implementation Guidelines
-
-### Programming Language
-
-- Python (async-first approach) to support high concurrency and performance.
-- Compatible with Pipenv virtual environments for dependency management.
-
-### Core Dependencies
-
-- **FastAPI**: For exposing SDK endpoints and optional telemetry interfaces.
-- **Uvicorn**: ASGI server for development and testing.
-- **LangChain & AutoGen**: For agent interaction and integration.
-- **OpenAI Python SDK**: For LLM calls within agent workflows.
-- **Redis / Aiokafka**: Asynchronous event streaming.
-- **SQLAlchemy / AsyncPG / Alembic**: Database interactions and migrations.
-- **Pydantic**: Data validation and structured event modeling.
-- **Loguru / Prometheus-client**: Structured logging and observability metrics.
-- **Cryptography / Python-JOSE**: Security, encryption, and RBAC token handling.
-
-### Development Approach
-
-1. Begin with SDK-first integration to enable agent-level control.
-2. Use the SDK to capture structured events and enforce basic risk/policy constraints.
-3. Gradually expand to proxy-layer architecture for centralized observability and control.
-4. Implement test cases and simulations to validate risk scoring, policy enforcement, and event streaming.
-
-### Recommended Project Workflow
-
-- **Repository Organization**: Keep code, experiments, notebooks, and documentation organized for easy reference and iterative design.
-- **Branching Strategy**: Use feature branches for experiments and SDK iterations.
-- **Documentation**: Maintain detailed architectural notes, flow diagrams, and design decisions in Markdown within the repository.
-- **Telemetry & Logging Experiments**: Prototype risk scoring algorithms, policy enforcement, and event streaming before full implementation.
-- **Iterative Development**: Incrementally develop SDK functions, ensuring compatibility with multiple AI agent frameworks.
-
-## Target Users and Use Cases
-
-The SDK is intended for:
-
-- AI-native startups and companies deploying autonomous agents.
-- Developers integrating governance and compliance hooks into their agents.
-- Enterprises requiring audit trails, risk scoring, and policy enforcement for AI-driven operations.
-- Security and compliance teams monitoring autonomous AI activity across multiple teams and departments.
-
-## Security and Compliance Considerations
-
-- Sensitive agent data must be encrypted at rest and in transit.
-- Access to logs and risk data is restricted using RBAC.
-- Audit trails are immutable and timestamped for compliance purposes.
-- Event data should be anonymized when aggregated for analytics or SDK telemetry collection.
-- Integration with enterprise compliance frameworks (SOC 2, ISO 27001) is recommended for regulated industries.
-
-## Future Directions
-
-- **Proxy Layer Integration**: Centralized control and aggregation of SDK telemetry for multi-agent observability.
-- **Enterprise Dashboard**: Optional UI for risk visualization, policy management, and analytics.
-- **Advanced Risk Engines**: ML-driven anomaly detection, hallucination prediction, and context-aware risk scoring.
-- **Multi-Agent Orchestration**: Scaling SDK integration to handle large fleets of agents concurrently.
-- **Cross-Framework Compatibility**: Support for LangChain, AutoGen, custom agent frameworks, and multi-LLM environments.
-
-## Documentation
-
-For comprehensive technical documentation, architecture details, and implementation guides, see [DOCUMENTATION.md](./DOCUMENTATION.md).
-
-### Quick Links
-
-- [Technical Architecture](./DOCUMENTATION.md#technical-architecture)
-- [SDK Architecture & Design](./DOCUMENTATION.md#sdk-architecture-and-design)
-- [Event Architecture](./DOCUMENTATION.md#event-architecture)
-- [Risk Engine Strategy](./DOCUMENTATION.md#risk-engine-strategy)
-- [Policy Engine](./DOCUMENTATION.md#policy-engine-architecture)
-- [API Reference](./DOCUMENTATION.md#api-design)
-- [Database Schema](./DOCUMENTATION.md#database-models-and-schema)
-- [Security Model](./DOCUMENTATION.md#security-model)
-- [Testing Strategy](./DOCUMENTATION.md#testing-strategy)
-- [Scalability & Performance](./DOCUMENTATION.md#scalability-and-performance)
+---
 
 ## Getting Started
 
-### Installation
+### Prerequisites
+- Docker and Docker Compose
+- An API key for your target LLM provider
+
+### Local Development
 
 ```bash
-pip install ai-control-layer
+git clone https://github.com/your-org/sovereign-proxy.git
+cd sovereign-proxy
+
+cp .env.example .env
+# Edit .env — add your LLM API key and set a strong JWT secret
+
+docker-compose -f infra/docker-compose.yml up -d
 ```
 
-### Quick Start
+| Service          | URL                     |
+|------------------|-------------------------|
+| Go Proxy         | http://localhost:8080   |
+| FastAPI Dashboard| http://localhost:8000   |
+| React Frontend   | http://localhost:3000   |
 
-```python
-from ai_control import ControlLayer
+### Verify the proxy is running
 
-# Initialize the control layer
-control = ControlLayer(
-    api_key="your_api_key",
-    org_id="your_org_id"
-)
-
-# Wrap your agent function
-@control.monitor(agent_id="my-agent")
-def my_agent_function(input_data):
-    # Your agent logic here
-    return process(input_data)
-
-# Execute with automatic monitoring
-result = my_agent_function("user request")
+```bash
+curl http://localhost:8080/health
+# {"status": "ok"}
 ```
 
-### LangChain Integration
+### Test PII masking end-to-end
 
-```python
-from langchain.callbacks import ControlLayerCallback
-from ai_control import ControlLayer
-
-control = ControlLayer(api_key="...", org_id="...")
-callback = ControlLayerCallback(control, agent_id="langchain-agent")
-
-# Use with your LangChain agent
-agent.run("your query", callbacks=[callback])
+```bash
+curl -X POST http://localhost:8080/v1/chat/completions \
+  -H 'Content-Type: application/json' \
+  -H 'X-Company-Key: test_key_123' \
+  -d '{"messages":[{"role":"user","content":"My ID is 23456789"}]}'
 ```
 
-## Project Status
+Check Postgres — `audit_logs` should show `pii_detected = true`. The `pii_tokens` table should contain the token mapping. The value `23456789` should not appear anywhere in the forwarded request.
 
-**Current Version**: 0.1.0 (Alpha)  
-**Status**: Active Development
+### Makefile shortcuts
 
-This is a startup-level project in early development. Contributions and feedback are welcome.
+```bash
+make dev      # start all containers
+make logs     # tail all container logs
+make test     # run Go and Python test suites
+make down     # stop all containers
+make deploy   # deploy to production VPS
+```
+
+---
+
+## Environment Variables
+
+All variables are defined in `.env.example`. Copy to `.env` and fill in real values. The `.env` file is never committed to git.
+
+```bash
+# Go Proxy
+OPENAI_BASE_URL=https://api.openai.com/v1
+OPENAI_API_KEY=your_llm_api_key_here
+PROXY_PORT=8080
+REDIS_URL=redis://redis:6379
+POSTGRES_URL=postgres://user:pass@postgres:5432/sovereign
+
+# FastAPI Dashboard
+JWT_SECRET=change_this_to_a_long_random_string
+JWT_EXPIRE_HOURS=24
+
+# Postgres
+POSTGRES_USER=user
+POSTGRES_PASSWORD=change_in_production
+POSTGRES_DB=sovereign
+
+# Admin
+ADMIN_API_KEY=your_internal_admin_key
+
+# Phase 2+
+DOMAIN=proxy.yourcompany.co.ke
+SSL_EMAIL=you@yourcompany.co.ke
+```
+
+---
+
+## Deployment Phases
+
+### Phase 1 — Local Proof of Concept
+All five containers run on a single machine via `docker-compose up`. The goal is to prove the full pipeline works end-to-end: a request containing a sensitive identifier enters the proxy, the identifier is masked, the clean request is forwarded to the LLM, and the event is logged and visible in the dashboard.
+
+**Done when:**
+- A request containing a Kenyan ID number reaches the proxy and the ID never appears in the upstream request
+- The original value is stored encrypted in `pii_tokens`
+- `audit_logs` shows `pii_detected = true`
+- Redis correctly blocks a request when a company exceeds their daily token budget
+- The React dashboard shows the live feed including the PII block event
+- `docker-compose down && docker-compose up` recovers cleanly with all data intact
+
+### Phase 2 — Pilot VPS Deployment
+The same Docker Compose setup runs on a cloud VPS hosted in-region. Nginx terminates HTTPS and routes subdomains to the correct containers. Postgres and Redis are bound to `127.0.0.1` only — not accessible from the internet. Pilot clients point their existing applications at the proxy endpoint with a single base URL change.
+
+**Done when:**
+- The proxy is reachable over HTTPS on a production domain with a valid TLS certificate
+- At least one external client is routing live traffic through the proxy
+- Postgres and Redis ports are not internet-accessible
+- Kill switch is tested and terminates a response mid-stream correctly
+- A compliance report has been generated and delivered to a pilot client
+- Data processor registration with the relevant data protection authority is submitted
+
+### Phase 3 — Production Scale
+Multiple stateless Go proxy instances run behind a load balancer. Postgres moves to a managed database service with automated backups and replication. Container orchestration handles zero-downtime deployments and automatic restarts. A Prometheus and Grafana monitoring stack provides real-time visibility into request throughput, latency percentiles, and infrastructure health.
+
+**Done when:**
+- Load testing confirms the proxy handles 1,000+ concurrent requests with < 200ms added latency
+- PII false positive rate is below 1% against representative production text
+- Managed database with automated backups and failover is in place
+- Monitoring and alerting stack is live
+- A documented case study exists: volume of PII blocks, cost saved, compliance events over a defined period
+
+---
+
+## Git Workflow
+
+```
+main        — production-ready code only, never commit directly
+dev         — active development, merge to main when a feature is complete
+feature/*   — one branch per feature, e.g. feature/pii-masking
+fix/*       — bug fix branches, e.g. fix/kill-switch-latency
+```
+
+**Commit message format:**
+
+```bash
+git commit -m 'proxy: add Kenyan national ID regex to PII masker'
+git commit -m 'proxy: implement Redis budget check before forwarding'
+git commit -m 'dashboard: add GET /report endpoint with weekly summary'
+git commit -m 'infra: add docker-compose.prod.yml with Nginx config'
+git commit -m 'frontend: add KillSwitchBadge to live feed table'
+git commit -m 'schema: add pii_tokens table with company_id foreign key'
+```
+
+Pattern: `service: what you did (present tense, concise)`
+
+---
+
+## Security and Compliance
+
+- PII original values are encrypted at rest in Postgres
+- Audit logs are immutable — no update or delete operations are permitted on `audit_logs`
+- Postgres and Redis are never exposed to the public internet in any deployment phase
+- All dashboard access is authenticated via short-lived JWT tokens
+- Credentials are managed via environment variables and never committed to version control
+- Data residency is enforced at the infrastructure level — all data remains within the deployment region
+- Architecture supports registration with national data protection authorities
+
+---
+
+## Roadmap
+
+- **Per-agent identity tagging** — attribute each request to a specific employee, service, or agent
+- **Prompt injection detection** — detect and block jailbreak and prompt injection attempts before they reach the LLM
+- **Cost attribution** — break down token spend by department, team, or agent for internal chargeback
+- **Webhook alerts** — fire to Slack, Teams, or PagerDuty when kill switch triggers or budget threshold is hit
+- **Semantic policy rules** — meaning-based blocking beyond keyword matching
+- **Shadow mode** — proxy logs everything and blocks nothing, for zero-risk enterprise onboarding
+- **Data residency routing** — route sensitive prompt categories to on-premises or regional models based on data classification
+- **Compliance packs** — pre-built rule sets for specific regulatory frameworks, deployable in one step
+- **Forensic replay** — replay any historical session exactly as it occurred for incident investigation
+- **Anomaly detection** — baseline normal agent behaviour and alert on statistical deviations
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Proxy engine | Go — `httputil.ReverseProxy` |
+| Policy cache | Redis 7 |
+| Audit storage | PostgreSQL 16 |
+| Management API | FastAPI + asyncpg |
+| Frontend | React + Vite |
+| Container runtime | Docker + Docker Compose |
+| Production routing | Nginx + Let's Encrypt |
+| Observability (Phase 3) | Prometheus + Grafana |
+
+---
 
 ## Contributing
 
-We welcome contributions! Please see our contribution guidelines:
-
 1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+2. Create a feature branch — `git checkout -b feature/your-feature`
+3. Commit using the message format described above
+4. Push and open a pull request against `dev`
+
+---
 
 ## License
 
-MIT License - see [LICENSE](./LICENSE) file for details.
+MIT License — see [LICENSE](./LICENSE) for details.
+
+---
 
 ## Contact
 
-For questions, feedback, or support:
-- GitHub Issues: [Create an issue](https://github.com/kevinkiplangat432/agents-control-infra-start-up-level-infra-backend.git)
+- GitHub Issues: [open an issue](https://github.com/your-org/sovereign-proxy/issues)
 - Email: kiplangatkevin335@gmail.com
-- Documentation: [DOCUMENTATION.md](./DOCUMENTATION.md)
-
-## Acknowledgments
-
-Built with modern Python async frameworks and designed for the AI agent ecosystem.i-LLM environments.
-
-## Conclusion
-
-The AI Control Layer SDK is a foundational tool for enterprises and developers seeking to govern, monitor, and manage autonomous AI agents. By providing structured logging, risk evaluation, policy enforcement, and observability hooks, the SDK enables safe, auditable, and compliant AI operations.
-
-The SDK-first approach ensures early adoption, developer integration, and a foundation for later proxy-based control layers, dashboards, and enterprise-scale deployments. This project represents a strategic infrastructure investment for the future of AI governance and autonomous agent management.le, and compliant AI operations.
-
-The SDK-first approach ensures early adoption, developer integration, and a foundation for later proxy-based control layers, dashboards, and enterprise-scale deployments. This project represents a strategic infrastructure investment for the future of AI governance and autonomous agent management.
