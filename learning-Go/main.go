@@ -4,6 +4,11 @@ import ("fmt")
 func main() {
 	fmt.Println("hello world!")
 	studentInfo()
+	var_no_decla()	
+	assign_them_now()
+	multiplefunctionDeclaration()
+	withoutTheTypeKeyword()
+	declarationInblock()
 }
 
 
