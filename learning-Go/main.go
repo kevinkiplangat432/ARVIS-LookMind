@@ -11,6 +11,7 @@ func main() {
 	declarationInblock()
 	call_constant()
 	typed()
+	untyped()
 }
 
 

@@ -15,3 +15,7 @@ func typed(){
 	fmt.Println(A)
 }
 
+func untyped(){
+	const B = 2
+	fmt.Println(B)
+}
