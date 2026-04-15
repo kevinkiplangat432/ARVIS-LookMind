@@ -9,6 +9,8 @@ func main() {
 	multiplefunctionDeclaration()
 	withoutTheTypeKeyword()
 	declarationInblock()
+	call_constant()
+	typed()
 }
 
 
