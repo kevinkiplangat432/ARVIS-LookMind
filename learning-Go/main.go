@@ -12,6 +12,7 @@ func main() {
 	call_constant()
 	typed()
 	untyped()
+	multiple()
 }
 
 

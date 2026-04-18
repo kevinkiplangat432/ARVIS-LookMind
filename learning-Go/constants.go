@@ -19,3 +19,15 @@ func untyped(){
 	const B = 2
 	fmt.Println(B)
 }
+
+const (
+  a int = 1
+  B = 3.14
+  C = "Hi!"
+)
+
+func multiple(){
+	fmt.Println(a)
+	fmt.Println(B)
+	fmt.Println(C)
+}
