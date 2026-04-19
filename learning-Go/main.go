@@ -21,6 +21,13 @@ func main() {
 	stringFormattingVerbs()
 	boolformating()
 	floatformatting()
+	Datatypes()
+	booldtype()
+	intdtype()
+	unsigned()
+	float32kw()
+	float64kw()
+	stringsfunc()
 }
 
 
