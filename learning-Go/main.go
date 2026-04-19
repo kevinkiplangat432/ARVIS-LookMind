@@ -13,6 +13,14 @@ func main() {
 	typed()
 	untyped()
 	multiple()
+	printfunc()
+	println_func()
+	print_f_func()
+	formatingverbs()
+	interger_formating()
+	stringFormattingVerbs()
+	boolformating()
+	floatformatting()
 }
 
 
