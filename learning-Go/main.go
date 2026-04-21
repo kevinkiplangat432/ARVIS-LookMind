@@ -33,6 +33,9 @@ func main() {
 	accessing_elements()
 	change_array_elements()
 	array_initialisation()
+	slices()
+	creatingSLiceFromArra()
+	usingTheMakeFunc()
 }
 
 
