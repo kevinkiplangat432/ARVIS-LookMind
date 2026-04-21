@@ -28,6 +28,11 @@ func main() {
 	float32kw()
 	float64kw()
 	stringsfunc()
+	arrayDemo()
+	array_of_strings()
+	accessing_elements()
+	change_array_elements()
+	array_initialisation()
 }
 
 
