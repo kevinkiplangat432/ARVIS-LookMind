@@ -40,6 +40,7 @@ func main() {
 	changeElementsSlices()
 	appending()
 	appending_one_slice_to_another()
+	LenghtofSlice()
 }
 
 
