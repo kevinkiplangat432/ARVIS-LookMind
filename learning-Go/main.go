@@ -36,6 +36,10 @@ func main() {
 	slices()
 	creatingSLiceFromArra()
 	usingTheMakeFunc()
+	accessingslice()
+	changeElementsSlices()
+	appending()
+	appending_one_slice_to_another()
 }
 
 
