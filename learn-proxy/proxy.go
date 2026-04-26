@@ -14,22 +14,23 @@ import (
 )
 // vreate a new custom type 
 // 
-type SafetyProxy struct {
-    targetURL  *url.URL
-    proxy      *httputil.ReverseProxy
+type SafetyProxy struct { // struct to hold my proxy and target info
+    targetURL  *url.URL  // the pointer to a url.URL object 
+    proxy      *httputil.ReverseProxy //pointer to Go built in reverse proxy 
 }
-
+//
 func NewSafetyProxy(target string) *SafetyProxy {
-    targetURL, _ := url.Parse(target)
+    targetURL, _ := url.Parse(target) // converts string into a url obkect and returns two things a parsed url and an error but we ignore the error for now with _
     
     sp := &SafetyProxy{
         targetURL: targetURL,
-    }
+    } // sp is a variable that holds a pointer to a new SafetyProxy struct with the targetURL field set to the parsed URL. The proxy field will be initialized later.
     
     // Create reverse proxy
     sp.proxy = httputil.NewSingleHostReverseProxy(targetURL)
     
     // Customize request handling
+	// director is a function that modifies the incoming request before it is sent to the target server. We save the original director function provided by the reverse proxy and then wrap it with our own function that calls the original director and then adds our custom logic to modify the request.
     originalDirector := sp.proxy.Director
     sp.proxy.Director = func(req *http.Request) {
         originalDirector(req)
@@ -49,17 +50,13 @@ func NewSafetyProxy(target string) *SafetyProxy {
 }
 
 func (sp *SafetyProxy) modifyRequest(req *http.Request) {
-    // Read body
     body, err := io.ReadAll(req.Body)
     if err != nil {
         log.Printf("Error reading body: %v", err)
         return
     }
     req.Body = io.NopCloser(bytes.NewReader(body))
-    
-    // Log request
     log.Printf("→ [%s] %s", req.Method, req.URL.Path)
-    
     // Inspect for AI-specific patterns
     if strings.Contains(req.Header.Get("Content-Type"), "application/json") {
         var data map[string]interface{}
@@ -67,13 +64,11 @@ func (sp *SafetyProxy) modifyRequest(req *http.Request) {
             // Check for prompt injection patterns
             if prompt, ok := data["prompt"].(string); ok {
                 if strings.Contains(strings.ToLower(prompt), "ignore previous instructions") {
-                    log.Printf("⚠️  Potential prompt injection detected!")
-                    // You could block/modify here
+                    log.Printf("Potential prompt injection detected!")
                 }
             }
-            
             // Log token count or other metrics
-            log.Printf("📝 Request body size: %d bytes", len(body))
+            log.Printf("Request body size: %d bytes", len(body))
         }
     }
     
@@ -136,3 +131,8 @@ func main() {
 // curl -X POST http://localhost:8080/v1/completions \
 //   -H "Content-Type: application/json" \
 //   -d '{"prompt": "Hello AI", "max_tokens": 10}'
+
+
+
+
+//ask about the constructor function NewSafetyProxy
