@@ -1,5 +1,3 @@
-// problem that we aim to solve is that i eant to listen for request, look at each request, decide what to do with the request weather i should forward itmodify or block it., get the response from the target server, look at the response, decide what to do with the response weather i should forward it modify or block it. and then send the response back to the client.
-
 package main
 
 import (
@@ -17,22 +15,50 @@ func main(){
 			http.Error(w, "can't read Body", http.StatusInternalServerError)
 			return
 		}
+
+		// create a new request for the destination server
+		proxyUrl := "https://api.openai.com" + r.URL.Path
+		newReq, err := http.NewRequest(r.method, proxyUrl, bytes.NewReader(bodyBytes))
+		if err != nill {
+			http.Error(w, "failed to create request", http.StatusInternalServerError)
+			return
+		}
+		//copy headers
+		newReq.Header = r.Header.clone()
+
+		client := &http.Client{}
+		resp, err := client.Do(newReq)
+		if err != nil{
+			http.Error(w, "Failed to reach destination", http.StatusBadGateway)
+			return
+		}
+
+
 		// close the body when done 
 		defer r.Body.Close()
 		// use the data from the body
 		log.Println(r.Method, r.URL.Path, "Body:", string(bodyBytes))
 
+		// restore the Body  put a fresh one in there 
+		r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+
+		w.WriteHeader(resp.StatusCode)
+		io.Copy(w, resp.Body)
+	
+
 		switch r.Method{
 		case http.MethodGet:
 			w.Write([]byte("Received!"))
+		case http.MethodPost:
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte("OK"))
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			w.Write([]byte("Method not supported\n"))
 		}
-		// restore the Body  put a fresh one in there 
-		r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 		
 	})
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
 
-// an http.handlerFunc is used to register a specific function to handle incomming HTTP request for a given URL pattern 
-// an http.resposewriter in go is an interface used by HTTP  handlers to construct and send an HTTP  response back to the client
