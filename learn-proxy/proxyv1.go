@@ -15,47 +15,35 @@ func main(){
 			http.Error(w, "can't read Body", http.StatusInternalServerError)
 			return
 		}
+		// close the body when done 
+		defer r.Body.Close()
+		log.Println(r.Method, r.URL.Path, "Body:", string(bodyBytes))
+
 
 		// create a new request for the destination server
-		proxyUrl := "https://api.openai.com" + r.URL.Path
-		newReq, err := http.NewRequest(r.method, proxyUrl, bytes.NewReader(bodyBytes))
-		if err != nill {
+		proxyUrl := "https://openai.com" + r.URL.Path
+		newReq, err := http.NewRequest(r.Method, proxyUrl, bytes.NewReader(bodyBytes))
+		if err != nil {
 			http.Error(w, "failed to create request", http.StatusInternalServerError)
 			return
 		}
-		//copy headers
-		newReq.Header = r.Header.clone()
+		
 
+		//copy headers
+		newReq.Header = r.Header.Clone()
+		newReq.Host = "localhost:8080"
+
+		// read the response4
 		client := &http.Client{}
 		resp, err := client.Do(newReq)
 		if err != nil{
 			http.Error(w, "Failed to reach destination", http.StatusBadGateway)
 			return
 		}
-
-
-		// close the body when done 
-		defer r.Body.Close()
-		// use the data from the body
-		log.Println(r.Method, r.URL.Path, "Body:", string(bodyBytes))
-
-		// restore the Body  put a fresh one in there 
-		r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
-
+		defer resp.Body.Close()
+		
 		w.WriteHeader(resp.StatusCode)
 		io.Copy(w, resp.Body)
-	
-
-		switch r.Method{
-		case http.MethodGet:
-			w.Write([]byte("Received!"))
-		case http.MethodPost:
-			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("OK"))
-		default:
-			w.WriteHeader(http.StatusMethodNotAllowed)
-			w.Write([]byte("Method not supported\n"))
-		}
 		
 	})
 	log.Fatal(http.ListenAndServe(":8080", nil))
