@@ -1,5 +1,5 @@
 // // main.go - HTTP Reverse Proxy with inspection capability
-package main
+ package main
 
 // import (
 //     "bytes" // manipulates bytes slices(raw data)
