@@ -15,18 +15,18 @@ func (th timeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request){
 	w.Write([]byte("the time is:" + tm))
 }
 
+
+
 func main(){
 	// Use the http.NewServeMux() function to create an empty servemux
 	mux := http.NewServeMux()
-
-	// use the http.RedirectHandler() function to create a handler which 307
-	// redirects all the request it receives to http://example.org
-	rh := http.RedirectHandler("http://example.org", 307)
+	
+	th := timeHandler{format: time.RFC1123}
 
 	//next we use the mux.handl() functions to register this with our new
 	//servemux, so it acts as the handler for all incomming request with the URL
 	// path /foo
-	mux.Handle("/foo", rh)
+	mux.Handle("/time", th)
 
 	log.Print("Listening...")
 
