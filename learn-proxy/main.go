@@ -8,12 +8,12 @@ import (
 	"time"
 )
 
- type Middleware func(http.Handler) http.Handler
+type Middleware func(http.Handler) http.Handler
 
-func ProxyHandler(proxy *httputil.ReverseProxy) http.HandlerFunc{
-	return func(w http.ResponseWriter,r *http.Request ){
+func ProxyHandlerfunc(proxy *httputil.ReverseProxy) http.HandlerFunc{
+	return func(w http.ResponseWriter, r *http.Request){
 		log.Printf(
-			"[proxy] METHOD %s | PATH %s | USER-AGENT %s",
+			"[PROXY] METHOD %s PATH %s USER-AGENT %s",
 			r.Method,
 			r.URL.Path,
 			r.Header.Get("User-Agent"),
@@ -22,39 +22,38 @@ func ProxyHandler(proxy *httputil.ReverseProxy) http.HandlerFunc{
 	}
 }
 
-func simpleLogger(next http.Handler) http.Handler{
+func simplelogger(next http.Handler) http.Handler{
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request){
-		log.Printf("before the middleware")
-
-		next.ServeHTTP(w,r)
-
-		log.Printf("After the middleware")
-	})
-}
+			log.Printf("[Middleware] before it runs")
+			next.ServeHTTP(w, r)
+			log.Print("[middleware] after the middleware runs")
+		})
+	}
 
 
 func main(){
+
+	// parse the target url string 
 	target, err := url.Parse("http://httpbin.org")
 	if err != nil{
-		log.Fatalf("failed to parse the target url %v ", err)
+		log.Fatalf("Failed to parse the target url %v", err)
 	}
-	
-
-	// create the forwarding
-
+	// create a new proxy 
 	proxy := httputil.NewSingleHostReverseProxy(target)
-
+	// set a proxy timeout
 	proxy.Transport = &http.Transport{
-		ResponseHeaderTimeout: 5 * time.Second,
+		ResponseHeaderTimeout: 5* time.Second,
 	}
 
-	handler := ProxyHandler(proxy)
-	wrapped := simpleLogger(handler)
-	//register the func
+	PHF:= ProxyHandlerfunc(proxy)
 
+	wrapped :=simplelogger(PHF)
+	
 	http.Handle("/home", wrapped)
+	log.Print("server started successfully == .... ====....===...")
 	err = http.ListenAndServe(":8080", nil)
 	if err != nil{
-		log.Fatalf("server did not start %v", err)
+		log.Fatalf("failed to start up the server %v", err)
 	}
-} 
+
+}
