@@ -3,40 +3,99 @@ package main
 import (
 	"log"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"time"
 )
 
-type timeHandler struct{
-	format string
+// Middleware defines a function that wraps an http.Handler
+type Middleware func(http.Handler) http.Handler
+
+// ProxyHandler handles incoming requests and forwards them using the reverse proxy
+func ProxyHandler(proxy *httputil.ReverseProxy) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		log.Printf(
+			"[PROXY] METHOD %s | PATH %s | USER-AGENT %s",
+			r.Method,
+			r.URL.Path,
+			r.Header.Get("User-Agent"),
+		)
+
+		// forward the request to the target server
+		proxy.ServeHTTP(w, r)
+	}
 }
 
-func (th timeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request){
-	tm := time.Now().Format(th.format)
-	w.Write([]byte("the time is:" + tm))
+// simpleLogger logs before and after the request is processed
+func simpleLogger(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Println("[MIDDLEWARE] before request")
+
+		// continue the chain
+		next.ServeHTTP(w, r)
+
+		log.Println("[MIDDLEWARE] after request")
+	})
 }
 
+// simpleBlocker blocks access to specific routes
+func simpleBlocker(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// block a specific path
+		if r.URL.Path == "/blocked" {
+			log.Printf("[BLOCKER] denied access to %s", r.URL.Path)
 
+			http.Error(w, "you are not allowed here", http.StatusForbidden)
+			return // stop the chain
+		}
 
-func main(){
-	// Use the http.NewServeMux() function to create an empty servemux
-	mux := http.NewServeMux()
-	
-	th := timeHandler{format: time.RFC1123}
-
-	//next we use the mux.handl() functions to register this with our new
-	//servemux, so it acts as the handler for all incomming request with the URL
-	// path /foo
-	mux.Handle("/time", th)
-
-	log.Print("Listening...")
-
-	// Then we create a new server and start listening for incoming requests
-	// with the http.ListenAndServe() function, passing in our servemux for it to
-	// match requests against as the second argument.
-	http.ListenAndServe(":3000", mux)
+		// continue if not blocked
+		next.ServeHTTP(w, r)
+	})
 }
 
+// headerModifier adds a custom header before forwarding the request
+func headerModifier(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// add a custom header to the outgoing request
+		r.Header.Set("X-Learning-Proxy", "Active")
 
-// type Handler interface{
-// 	ServeHTTP(w http.ResponseWriter, r *http.Request)
-// }
+		// continue the chain
+		next.ServeHTTP(w, r)
+	})
+}
+
+func main() {
+	// parse the target URL
+	target, err := url.Parse("http://httpbin.org")
+	if err != nil {
+		log.Fatalf("failed to parse the target url: %v", err)
+	}
+
+	// create the reverse proxy
+	proxy := httputil.NewSingleHostReverseProxy(target)
+
+	// configure timeout for upstream response
+	proxy.Transport = &http.Transport{
+		ResponseHeaderTimeout: 5 * time.Second,
+	}
+
+	// build the handler chain
+	Ph := ProxyHandler(proxy)
+
+	// middleware wrapping (last added runs first)
+	Hm := headerModifier(Ph)
+	Sb := simpleBlocker(Hm)
+	SL := simpleLogger(Sb)
+
+	// register route
+	http.Handle("/", SL)
+
+	log.Println("server started on :8080")
+
+	// start server
+	err = http.ListenAndServe(":8080", nil)
+	if err != nil {
+		log.Fatalf("failed to start server: %v", err)
+	}
+}
