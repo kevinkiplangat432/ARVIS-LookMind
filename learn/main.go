@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/rand"
 	"log"
 	"net/http"
 	"net/http/httputil"
@@ -10,6 +11,27 @@ import (
 
 // Middleware defines a function that wraps an http.Handler
 type Middleware func(http.Handler) http.Handler
+type contextKey string
+
+const requestIDKey contextKey = "requestID"
+
+
+func requestIDMiddleware(next http.Handler) http.Handler{
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request){
+		//generate id
+		b := make([]byte, 4)
+		rand.Read(b)
+
+		//store in context
+
+		// attach new context to request
+
+		// set reponse header
+
+		// call next
+	})
+
+}
 
 // ProxyHandler handles incoming requests and forwards them using the reverse proxy
 func ProxyHandler(proxy *httputil.ReverseProxy) http.HandlerFunc {
