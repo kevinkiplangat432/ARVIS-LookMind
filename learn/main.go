@@ -1,35 +1,54 @@
 package main
 
 import (
+	"context"
 	"crypto/rand"
 	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"time"
-	
+	"fmt"
 )
 
 // Middleware defines a function that wraps an http.Handler
 type Middleware func(http.Handler) http.Handler
+
 type contextKey string
 
 const requestIDKey contextKey = "requestID"
 
+func SetRequestID(ctx context.Context, ID string) context.Context {
+	return context.WithValue(ctx, requestIDKey, ID )
+}
+
+func GetRequestID(ctx context.Context) string {
+	id, _ := ctx.Value(requestIDKey) .(string)
+	return id
+}
+
+func generateId() string{
+	b := make([]byte, 16)
+	_, err := rand.Read(b)
+	if err != nil {
+		return "req-" + time.Now().Format("05.000")
+	}
+	return fmt.Sprintf("%x", b)
+}
 
 func requestIDMiddleware(next http.Handler) http.Handler{
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request){
 		//generate id
-		b := make([]byte, 4)
-		rand.Read(b)
-
+		id := generateId()
 		//store in context
-
+		newCtx := SetRequestID(r.Context(), id)
 		// attach new context to request
-
+		r = r.WithContext(newCtx)
 		// set reponse header
+		w.Header().Set("X-Request-ID", id)
 
 		// call next
+		next.ServeHTTP(w, r)
 	})
 
 }
@@ -52,7 +71,10 @@ func ProxyHandler(proxy *httputil.ReverseProxy) http.HandlerFunc {
 // simpleLogger logs before and after the request is processed
 func simpleLogger(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		id := GetRequestID(r.Context())
 		log.Println("[MIDDLEWARE] before request")
+		log.Printf("[MIDDLEWARE] request_id=%s before request", id)
+
 
 		// continue the chain
 		next.ServeHTTP(w, r)
@@ -103,6 +125,8 @@ func main() {
 		ResponseHeaderTimeout: 5 * time.Second,
 	}
 
+
+
 	// build the handler chain
 	Ph := ProxyHandler(proxy)
 
@@ -110,9 +134,11 @@ func main() {
 	Hm := headerModifier(Ph)
 	Sb := simpleBlocker(Hm)
 	SL := simpleLogger(Sb)
+	Rid := requestIDMiddleware(SL)
 
+	
 	// register route
-	http.Handle("/", SL)
+	http.Handle("/", Rid)
 
 	log.Println("server started on :8080")
 
