@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"crypto/rand"
-	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -47,6 +46,7 @@ func generateId() string{
 	_, err := rand.Read(b)
 	// worth checking if we need to upgrade this log
 	if err != nil {
+		slog.Warn("Crypto rnd failed, falling back to time based id", slog.Any("error", err))
 		return "req-" + time.Now().Format("05.000")
 	}
 	return fmt.Sprintf("%x", b)
@@ -80,40 +80,7 @@ func ProxyHandler(proxy *httputil.ReverseProxy) http.HandlerFunc {
 	}
 }
 
-// // simpleLogger logs before and after the request is processed
-// func simpleLogger(next http.Handler) http.Handler {
-// 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-// 		id := GetRequestID(r.Context())
-// 		// instead of printing separate "before" and "after "  text lines  this must be refactored into a single JSON logging powerhouse
-// 		// track time, inject custom reposnse write wrapper into next.ServeHTTP, Extract the requestID , calculate duration, use slog to write single JSON log containing all five required fileds 
-// 		log.Println("[MIDDLEWARE] before request")
-// 		log.Printf("[MIDDLEWARE] request_id=%s before request", id)
 
-
-// 		// continue the chain
-// 		next.ServeHTTP(w, r)
-
-// 		log.Println("[MIDDLEWARE] after request")
-// 	})
-// }
-
-// simpleBlocker blocks access to specific routes
-func simpleBlocker(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// block a specific path
-		// when a request is blocked currently it just print unstructured text log and immdiately returns 403 Forbidden Status. upgrade this to use a new JSON slog layout so that denials much my starndard formatting
-
-		if r.URL.Path == "/blocked" {
-			logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-			logger.Warn("Acess Denied", "path", r.URL.Path, "status_code", http.StatusForbidden, "request_id", GetRequestID(r.Context()))
-			http.Error(w, "you are not allowed here", http.StatusForbidden)
-			return // stop the chain
-		}
-
-		// continue if not blocked
-		next.ServeHTTP(w, r)
-	})
-}
 
 // headerModifier adds a custom header before forwarding the request
 func headerModifier(next http.Handler) http.Handler {
@@ -125,6 +92,26 @@ func headerModifier(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 	})
 }
+
+// simpleBlocker blocks access to specific routes
+func simpleBlocker(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// block a specific path
+		// when a request is blocked currently it just print unstructured text log and immdiately returns 403 Forbidden Status. upgrade this to use a new JSON slog layout so that denials much my starndard formatting
+
+		if r.URL.Path == "/blocked" {
+			// logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+			// logger.Warn("Acess Denied", "path", r.URL.Path, "status_code", http.StatusForbidden, "request_id", GetRequestID(r.Context()))
+			http.Error(w, "you are not allowed here", http.StatusForbidden)
+			return // stop the chain
+		}
+
+		// continue if not blocked
+		next.ServeHTTP(w, r)
+	})
+}
+
+
 
 func jsonLoggerMiddleware(next http.Handler) http.Handler{
 
@@ -172,7 +159,7 @@ func main() {
 
 	target, err := url.Parse("http://httpbin.org")
 	if err != nil {
-		log.Fatalf("failed to parse the target url: %v", err)
+		slog.Error("failed to parse the target url", slog.Any("error", err))
 	}
 
 	// create the reverse proxy
@@ -210,7 +197,8 @@ func main() {
 	// start server
 	err = http.ListenAndServe(":8080", nil)
 	if err != nil {
-		slog.Error("failed to start server", err)
+		slog.Error("failed to start server", slog.Any("error", err))
+
 		os.Exit(1)
 	}
 }
