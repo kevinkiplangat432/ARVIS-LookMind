@@ -1,44 +1,53 @@
 package main
 
-import(
-	"fmt"
-)
-var count int       // 0
-var balance float64 // 0.0
-var active bool     // false
-var name string  
+import "fmt"
 
-// just because Go does not want me to set up stuff and not use them actually
-
-func print_stuff(){
-	fmt.Printf("count: %d\n", count)
-	fmt.Printf("balance: %.2f\n", balance)
-	fmt.Printf("active: %t\n", active)
-	fmt.Printf("name: '%s'\n", name)
+// define an interface job describtion
+type Speaker interface{
+	Speak() string
 }
 
-type User struct {
-	ID int
-	Username string
-	IsActive bool
+// struct 1
+type Human struct {
+	Name string
+	
 }
 
+
+// the reciver
+func (h Human) Speak() string {
+	return "Hello! my name is " + h.Name
+}
+
+
+// struct b
+type Dog struct {
+	Breed string
+}
+
+// the method for dog 
+func (d Dog) Speak() string{
+	return "Woof! I am a " + d.Breed
+
+}
+
+// the interface User ( the flexible structure)
+
+
+func MakeItSpeak(s Speaker) {
+	fmt.Println("The speaker says: ", s.Speak())
+}
 
 func main(){
-	// cteating a struct instance using a literal struct definition
-	u := User{
-		ID: 101,
-		Username: "john_doe",
-		IsActive: true,
+	// instantiate
+	person := Human{
+		Name: "Alice",
 	}
-	// Accessing fields using dot notation
-	fmt.Printf("user %d: %s (Active: %t)\n", u.ID, u.Username, u.IsActive)
-	print_stuff()
+	puppy := Dog{
+		Breed: "Golden Retriever",
+	}
+
+	MakeItSpeak(person)
+	MakeItSpeak(puppy)
 }
 
-
-// (u User) is a value receiver
-
-func (u User) ProfileMessage() string {
-	return "User: " + u.Username
-}
