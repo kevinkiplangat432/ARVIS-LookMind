@@ -63,6 +63,7 @@ func writeLog(){
 		slog.Error("failed to write to file", "error", err)
 		return 
 	}
+	
 
 
 	slog.Info("reached the end of the function code")
