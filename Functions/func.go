@@ -64,7 +64,17 @@ func writeLog(){
 
 
 //panic and recovery 
-
+func safeDivide(a int, b int) int {
+	// we must defer the recovery function before the panic happens
+	defer func(){
+		// recover intercepts the point state
+		if r := recover(); r != nil {
+			slog.Error("saved the program from crashing", "panic_reason", r)
+		}
+	}()
+	slog.Info("Attempting divison", "a", a, "b", b)
+	return a/b
+}
 
 
 func main(){
@@ -80,6 +90,13 @@ func main(){
 	slog.Info("starting counter","count", counterA())
 
 	writeLog()
+	// Noraml execution
+	result := safeDivide(10,2)
+	slog.Info("Division success", "result", result)
 
-	
+	//this will trigger a panic but our code will recover!
+	failedResult := safeDivide(10,0)
+	// the program run
+
+	slog.Info("Program completed all task successfully!", "final check", failedResult )
 }
