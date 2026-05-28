@@ -30,7 +30,7 @@ func main() {
 	slog.Info("Checking deletion", "exists", exists, "value", val)
 
 
-	slog.Info("--- 3. POINTERS & COPYING DEMO ---")
+	slog.Info("POINTERS & COPYING DEMO")
 
 	num := 10
 	slog.Info("Before modifyVal", "num", num)
@@ -40,6 +40,10 @@ func main() {
 	slog.Info("Before modifyPointer", "num", num)
 	modifyPointer(&num) // Passing the memory address explicitly
 	slog.Info("After modifyPointer (Changed, we went to the address)", "num", num)
+
+
+	subSlice()
+	AppendAfterSUbSlice()
 }
 // Receives a copy of the actual number value
 func modifyVal(val int) {
@@ -49,4 +53,35 @@ func modifyVal(val int) {
 // Receives a copy of the memory address pointing to the number
 func modifyPointer(valPtr *int) {
 	*valPtr = 999 // De-referencing: alter the value at that address
+}
+
+func subSlice() {
+	original := []int{10, 20, 30, 40}
+	
+	// Create a sub-slice (indexes 1 and 2)
+	subSlice := original[1:3] // contains [20, 30]
+
+	// Changing the sub-slice mutates the original slice!
+	subSlice[0] = 999 
+
+	slog.Info("Mutating sub-slice changes original!", "original", original)
+	// Output will show original is now: [10, 999, 30, 40]
+}
+
+
+func AppendAfterSUbSlice() {
+	// Capacity is 4. Array is full.
+	a := []int{1, 2, 3, 4} 
+	sub := a[0:2] // sub is [1, 2], len=2, cap=4 (shares array with 'a')
+
+	// There is room in the capacity! This overwrites the 3 in 'a'
+	sub = append(sub, 99) 
+	slog.Info("Shared array append", "a", a) // 'a' becomes [1, 2, 99, 4]
+
+	// This append exceeds capacity! 'sub' reallocates to a brand new array.
+	sub = append(sub, 88, 77) 
+	
+	// Now modifying 'sub' does NOT affect 'a' anymore!
+	sub[0] = 555
+	slog.Info("Snapped link", "a", a, "sub", sub)
 }
