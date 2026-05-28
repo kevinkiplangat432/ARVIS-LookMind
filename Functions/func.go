@@ -50,10 +50,19 @@ func writeLog(){
 
 	// now if we close the file now it will not work below this (code)
 	// defer the close 
-	defer file.Close()
+	defer func(){
+		if err := file.Sync(); err != nil {
+			slog.Error("Failed to sync file to disk", "error", err)
+		}
+		file.Close()
+	}()
 
 	slog.Info("writing into the log.txt file....")
-	file.WriteString("hello Go")
+	_, err = file.WriteString("hello Go")
+	if err != nil {
+		slog.Error("failed to write to file", "error", err)
+		return 
+	}
 
 
 	slog.Info("reached the end of the function code")
