@@ -1,0 +1,23 @@
+version: '3.8'
+services:
+  arvis:
+    build: .
+    ports:
+      - "8080:8080"   # proxy
+      - "8081:8081"   # API
+      - "3000:3000"   # dashboard
+    env_file: .env
+    depends_on:
+      - postgres
+
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: arvis
+      POSTGRES_USER: arvis
+      POSTGRES_PASSWORD: arvis
+    volumes:
+      - arvis_data:/var/lib/postgresql/data
+
+volumes:
+  arvis_data:
