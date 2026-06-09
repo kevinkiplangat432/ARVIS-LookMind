@@ -1,4 +1,5 @@
 package main
+
 import (
 	"fmt"
 	"sync"
@@ -54,7 +55,7 @@ func main() {
 	go func() {
 		defer wg.Done()
 		time.Sleep(25 * time.Millisecond) // wait for readers to start
-		fmt.Println("!!! [ADMIN] Updating maintenance mode to true !!!")
+		fmt.Println("\n !!! [ADMIN] Updating maintenance mode to true !!!\n")
 		store.Set("maintenance _mode", "true")
 
 	}()
