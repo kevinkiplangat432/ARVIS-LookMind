@@ -18,10 +18,10 @@ func main() {
 	datachan := make(chan int)
 
 	go streamTokens(datachan)
+	timeout := time.After(300 * time.Millisecond)
 
 
 	for {
-		timeout := time.After(300 * time.Millisecond)
 
 		select{
 		case token :=  <- datachan:
