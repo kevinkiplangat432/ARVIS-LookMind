@@ -1,5 +1,7 @@
 package main
 
+// allof them ...wait groups, worker pools and channels
+
 import (
 	"fmt"
 	"sync"
@@ -21,7 +23,7 @@ func emailWorker(workerID int, jobs <-chan Email, wg *sync.WaitGroup) {
 	for email := range jobs {
 		fmt.Printf("[Worker %d] ➔ Sending newsletter to %s...\n", workerID, email.Address)
 		
-		time.Sleep(500 * time.Millisecond) // Simulate network/email delivery latency
+		time.Sleep(200 * time.Millisecond) // Simulate network/email delivery latency
 		
 		fmt.Printf("[Worker %d] ✓ Successfully sent to %s\n", workerID, email.Address)
 	}
@@ -37,27 +39,27 @@ func main() {
 		{ID: 4, Address: "david@example.com"},
 	}
 
-	// 1. Create a jobs queue channel with a buffer size matching our subscribers count
+	// Create a jobs queue channel with a buffer size matching our subscribers count
 	jobQueue := make(chan Email, len(subscribers))
 	
 	var wg sync.WaitGroup
 
-	// 2. Start EXACTLY 2 workers. This strictly limits our concurrency pool size.
+	// Start EXACTLY 2 workers. This strictly limits our concurrency pool size.
 	fmt.Println("Deploying 2 email workers to handle the queue...")
 	for i := 1; i <= 2; i++ {
 		wg.Add(1) // Track this worker
 		go emailWorker(i, jobQueue, &wg)
 	}
 
-	// 3. Shove all our email jobs into the queue channel immediately
+	// Shove all our email jobs into the queue channel immediately
 	for _, sub := range subscribers {
 		jobQueue <- sub
 	}
 	
-	// 4. Close the channel to tell workers: "No more emails are coming, shut down when done"
+	// Close the channel to tell workers: "No more emails are coming, shut down when done"
 	close(jobQueue)
 
-	// 5. Block main here until BOTH workers completely finish processing the entire queue
+	// Block main here until BOTH workers completely finish processing the entire queue
 	wg.Wait()
 
 	fmt.Printf("\nBroadcast completed successfully! Total time: %v\n", time.Since(start))

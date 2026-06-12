@@ -1,4 +1,6 @@
 package main
+// mutexes ...  are like the gate keepers ...they decide what happens in the storage who reads and who writes  ...and when they need "privacy"
+
 import (
 	"fmt"
 	"sync"
