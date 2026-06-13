@@ -35,6 +35,7 @@ func main() {
 	}
 
 	// place the 10shards onto the belt
+	
 	for j := 101; j<=110; j++ {
 		jobsChan <- j
 	}

@@ -15,7 +15,7 @@ func streamTokens(datachan chan int, quitchan chan bool) {
 	token := 1
 	// start an infinite loop
 	for {
-		select{
+		select{clear 
 		case datachan <- token:
 			
 			token ++
