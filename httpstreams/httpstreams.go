@@ -11,7 +11,7 @@ import (
 func main() {
 	// start the mock upstream server sim OpenAI or a slow db
 	go func() {
-		http.HandleFunc("/upstream-strem", mockUpstreamHandler)
+		http.HandleFunc("/upstream-stream", mockUpstreamHandler)
 		fmt.Println("[Upstream] Server running on :8081...")
 		if err := http.ListenAndServe(":8081", nil); err != nil {
 			panic(err)
@@ -63,4 +63,52 @@ func mockUpstreamHandler(w http.ResponseWriter, r *http.Request) {
 
 
 // Handler for the arvis Proxy server - forward data 
+func arvisProxyHandler(w http.ResponseWriter, r *http.Request) {
+	//assert that our proxy response writer can flush to the end client
 
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, "proxy streaming not supported", http.StatusInternalServerError)
+		return
+	}
+
+
+	// set downstream response headers
+	w.Header().Set("Content-Type", "text/event-stream")
+
+	// call the upstream streaming endpoint
+	resp, err := http.Get("http://Localhost:8081/upstream-stream")
+	if err != nil {
+		http.Error(w, "Failed to connect to uostream", http.StatusBadGateway)
+		return
+	}
+
+	
+	defer resp.Body.Close()
+
+	// stream the data chunk by chunk writer to writer
+	//insted of loading the resp body using io.readall we use bufio.Reader
+	reader := bufio.NewReader(resp.Body)
+
+	for {
+		// read up until each newline chunk sent by upstream 
+		line, err := reader.ReadBytes('\n')
+
+		if len(line) > 0 {
+			// write the chunk to our client response writer
+			w.Write(line)
+			flusher.Flush() // push directly to the client rn
+			fmt.Printf("[Proxy log] Forwarding chunk: %s", string(line))
+
+		}
+
+		if err !=nil {
+			if err == io.EOF {
+				fmt.Println("[Proxy log] Upstream stream ended")
+				break
+			}
+			fmt.Printf("[proxy Log] stream reading errors: %v\n", err)
+			break
+		}
+	}
+}
