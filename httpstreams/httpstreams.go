@@ -1,5 +1,5 @@
 package main
-
+// This example demonstrates how to implement a simple HTTP proxy that forwards streaming data from an upstream server to a downstream client.
 import (
 	"bufio"
 	"fmt"
