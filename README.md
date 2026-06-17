@@ -64,6 +64,7 @@ For the full engineering rationale, see [`DOCUMENTATION.md`](DOCUMENTATION.md).
 ## Getting Started
 
 ### Prerequisites
+
 - Docker and Docker Compose
 - An API key for your target LLM provider
 
@@ -81,9 +82,9 @@ docker compose up -d
 
 | Service         | URL                    |
 |-----------------|------------------------|
-| Go Proxy        | http://localhost:8080  |
-| Go API          | http://localhost:8081  |
-| React Dashboard | http://localhost:3000  |
+| Go Proxy        | <http://localhost:8080>  |
+| Go API          | <http://localhost:8081>  |
+| React Dashboard | <http://localhost:3000>  |
 
 ```bash
 curl http://localhost:8081/health
@@ -181,17 +182,21 @@ CREATE TABLE anomalies (
 ## Deployment Phases
 
 ### Phase 1 — Local Proof of Concept ← we are here
+
 `docker compose up` on a single machine. Pipeline proven end-to-end: request enters proxy → logged to Postgres → anomaly detected → visible in the dashboard.
 
 Done when:
+
 - Proxied requests appear in the live feed
 - Anomalies are detected and displayed
 - `docker compose down && up` recovers cleanly with all data intact
 
 ### Phase 2 — Pilot VPS
+
 Docker Compose on a cloud VPS. Nginx terminates HTTPS. Postgres bound to `127.0.0.1`. Pilot clients redirect a single base URL — no other changes to their systems.
 
 ### Phase 3 — Production Scale
+
 Multiple stateless Go instances behind a load balancer. Managed Postgres with automated backups. Prometheus + Grafana observability stack.
 
 ---
@@ -263,4 +268,4 @@ git commit -m 'dashboard: auto-poll anomaly feed every 5s'
 
 ## Contact
 
-Kevin — kiplangatkevin335@gmail.com
+Kevin — <kiplangatkevin335@gmail.com>
