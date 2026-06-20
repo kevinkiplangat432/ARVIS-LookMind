@@ -1,15 +1,33 @@
 package api
 
 import (
-	"log"
+	"log/slog"
 	"net/http"
 	"time"
 )
 
-func withLogging(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		start := time.Now()
-		next.ServeHTTP(w, r)
-		log.Printf("api %s %s %dms", r.Method, r.URL.Path, time.Since(start).Milliseconds())
-	})
+func withLogging(logger *slog.Logger) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			start := time.Now()
+			rec := &statusRecorder{ResponseWriter: w, code: http.StatusOK}
+			next.ServeHTTP(rec, r)
+			logger.Info("api request",
+				"method", r.Method,
+				"path", r.URL.Path,
+				"status", rec.code,
+				"latency_ms", time.Since(start).Milliseconds(),
+			)
+		})
+	}
+}
+
+type statusRecorder struct {
+	http.ResponseWriter
+	code int
+}
+
+func (r *statusRecorder) WriteHeader(code int) {
+	r.code = code
+	r.ResponseWriter.WriteHeader(code)
 }
