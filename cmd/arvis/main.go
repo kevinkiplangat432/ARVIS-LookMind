@@ -17,6 +17,9 @@ import (
 	"github.com/kevinkiplangat432/arvis/internal/api"
 	"github.com/kevinkiplangat432/arvis/internal/config"
 	"github.com/kevinkiplangat432/arvis/internal/proxy"
+	"github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 )
 
 const banner = `
@@ -32,6 +35,7 @@ Version 0.2.0
 `
 
 func main() {
+
 	_ = godotenv.Load()
 
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
@@ -58,6 +62,17 @@ func main() {
 		os.Exit(1)
 	}
 	logger.Info("database connected")
+
+	m, err := migrate.New("file://migrations", cfg.DatabaseURL)
+	if err != nil {
+		logger.Error("failed to init migrations", "error", err)
+		os.Exit(1)
+	}
+	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+		logger.Error("failed to run migrations", "error", err)
+		os.Exit(1)
+	}
+	logger.Info("migrations applied")
 
 	// Proxy server on :8080
 	targetURL, err := url.Parse(cfg.TargetURL)
