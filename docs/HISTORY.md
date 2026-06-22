@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="../LookMind.png" alt="LookMind" width="100" />
+</p>
+
 # Project History
 
 > This is the origin story of ARVIS — why it exists, how it started, and why it changed.

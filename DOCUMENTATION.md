@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="LookMind.png" alt="LookMind" width="100" />
+</p>
+
 # ARVIS — Technical Documentation
 
 > **Version**: 0.1.0 (Alpha) · **Last Updated**: 2025
