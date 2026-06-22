@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="LookMind.png" alt="LookMind" width="100" />
+  <img src="LookMind.png" alt="LookMind" width="300" />
 </p>
 
 # Feature Tracker
