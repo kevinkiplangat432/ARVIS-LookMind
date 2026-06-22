@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="LookMind.png" alt="LookMind" width="120" />
+</p>
+
 # ARVIS — AI Request Visibility & Intelligence System
 
 > **Version**: 0.1.0 (Alpha) · **Status**: Active Development
