@@ -1,3 +1,4 @@
+<!-- markdownlint-disable MD033 MD041 MD036-->
 <p align="center">
   <img src="../LookMind.png" alt="LookMind" width="300" />
 </p>
@@ -24,6 +25,7 @@ The question that started everything:
 ---
 
 ## Phase 1 — AI Control Layer SDK
+
 **February 2026 – April 2026**
 
 The first implementation was an SDK.
@@ -40,6 +42,7 @@ The SDK was built to provide:
 - Audit trails for compliance
 
 It explored deep questions about AI governance:
+
 - What constitutes risky AI behaviour?
 - How should policies be enforced without breaking agent workflows?
 - What information is legally required for an audit trail?
@@ -68,6 +71,7 @@ This changed everything about the architecture.
 ---
 
 ## Phase 2 — ARVIS
+
 **April 2026 – Present**
 
 The project became **ARVIS — AI Request Visibility & Intelligence System**.
@@ -111,3 +115,5 @@ The problem has been the same since 23 February 2026:
 Organisations deploying AI systems need visibility, auditability, and control — at the infrastructure level, without depending on the cooperation of every team and every codebase they operate.
 
 The architecture moved from SDK to proxy. The mission did not move at all.
+
+<!-- markdownlint-disable MD041 -->

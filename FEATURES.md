@@ -1,3 +1,4 @@
+<!-- markdownlint-disable MD031 MD040 MD033 MD041 MD036 MD060 -->
 <p align="center">
   <img src="LookMind.png" alt="LookMind" width="300" />
 </p>
@@ -25,6 +26,7 @@
 ---
 
 ## Phase 1 — Core Foundation
+
 > Goal: prove the full pipeline works locally. Every item here must be ✅ before Phase 2 begins.
 
 | # | Feature | Status | Location |
@@ -55,6 +57,7 @@
 ---
 
 ## Phase 2 — Make It Sellable
+
 > Goal: features that turn the proof of concept into something a paying client would trust with live traffic.
 
 | # | Feature | Status | Location |
@@ -80,6 +83,7 @@
 ---
 
 ## Phase 3 — Make It Sticky
+
 > Goal: features that make ARVIS hard to remove once embedded in a client's infrastructure.
 
 | # | Feature | Status | Notes |
@@ -98,6 +102,7 @@
 ---
 
 ## Phase 4 — Platform Scale
+
 > Build these after the first enterprise contract is signed.
 
 | # | Feature | Status | Notes |

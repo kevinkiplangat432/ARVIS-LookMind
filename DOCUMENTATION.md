@@ -1,3 +1,4 @@
+<!-- markdownlint-disable MD029 MD031 MD040 MD033 MD041 MD036 MD060 -->
 <p align="center">
   <img src="LookMind.png" alt="LookMind" width="300" />
 </p>
@@ -5,7 +6,7 @@
 # ARVIS — Technical Documentation
 
 > **Version**: 0.1.0 (Alpha) · **Last Updated**: 2025
-> **Maintained by**: Kevin — kiplangatkevin335@gmail.com
+> **Maintained by**: Kevin — <kiplangatkevin335@gmail.com>
 
 This document is the technical reference for ARVIS. It covers architecture, data flow, every internal package, the API contract, the dashboard, testing, and deployment in depth.
 
@@ -374,6 +375,7 @@ Both functions throw on non-2xx responses. The caller catches and ignores errors
 ### Pages
 
 **`Dashboard.tsx`** — the primary view. On mount and every 5 seconds:
+
 1. Calls `getRequests()` and `getAnomalies()` in parallel
 2. Computes stats from the requests array: total count, sum of all tokens, mean latency
 3. Renders `StatCards`, `RequestTable`, and `AnomalyFeed`
@@ -517,18 +519,23 @@ Multiple stateless Go instances behind a load balancer. Postgres moves to a mana
 ## Engineering Principles
 
 ### Go for everything backend
+
 One language, one binary, one process, one container. The proxy and API are two `http.ListenAndServe` calls in `main()`. No inter-service calls, no serialisation overhead between components, no separate deployment pipeline.
 
 ### Async writes on the critical path
+
 `receive → forward → respond` is the only work on the critical path. Database writes, anomaly detection, and any future rule evaluation all happen in goroutines after the response is returned. The proxy adds microseconds of overhead, not milliseconds.
 
 ### Append-only audit trail
+
 No row is ever updated or deleted. This makes the audit trail tamper-evident by construction, not by policy.
 
 ### Fail open
+
 If Postgres is unavailable, the proxy continues proxying. Log write errors go to stderr. The proxy is not a single point of failure for the application it governs.
 
 ### Minimal dependencies
+
 Go standard library + chi (routing) + pgx (Postgres). No ORM. No framework. Every external dependency earns its place.
 
 ---

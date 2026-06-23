@@ -1,3 +1,4 @@
+<!-- markdownlint-disable MD031 MD040 MD033 MD041 MD036 MD060 -->
 <p align="center">
   <img src="LookMind.png" alt="LookMind" width="300" />
 </p>
@@ -25,8 +26,8 @@ A Go binary runs two HTTP servers from a single process:
 - **API** on `:8081` — serves the request log and anomaly feed as JSON to the dashboard
 
 A React dashboard on `:3000` polls the API every 5 seconds and renders a live feed of requests, flagged anomalies, and aggregate stats.
-
 ```
+
 Your Application
       │
       ▼
