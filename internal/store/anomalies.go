@@ -31,7 +31,7 @@ func ListAnomalies(ctx context.Context, db *pgxpool.Pool, limit int) ([]Anomaly,
 	}
 	defer rows.Close()
 
-	var out []Anomaly
+	out := make([]Anomaly, 0)
 	for rows.Next() {
 		var a Anomaly
 		if err := rows.Scan(&a.ID, &a.RequestID, &a.Rule, &a.Detail, &a.CreatedAt); err != nil {
