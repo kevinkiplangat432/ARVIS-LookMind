@@ -26,6 +26,7 @@ func InsertRequest(ctx context.Context, db *pgxpool.Pool, r Request) error {
 	return err
 }
 
+
 func ListRequests(ctx context.Context, db *pgxpool.Pool, limit int) ([]Request, error) {
 	rows, err := db.Query(ctx,
 		`SELECT id, model, prompt_tokens, completion_tokens, latency_ms, status_code, created_at
@@ -35,7 +36,7 @@ func ListRequests(ctx context.Context, db *pgxpool.Pool, limit int) ([]Request, 
 	}
 	defer rows.Close()
 
-	var out []Request
+	out := make([]Request, 0)
 	for rows.Next() {
 		var r Request
 		if err := rows.Scan(&r.ID, &r.Model, &r.PromptTokens, &r.CompTokens, &r.LatencyMs, &r.StatusCode, &r.CreatedAt); err != nil {

@@ -1,0 +1,58 @@
+ARVIS Test Suite
+================
+
+SETUP (run once, or after adding new migrations)
+-------------------------------------------------
+Apply migrations to the test database:
+
+  DATABASE_URL="postgres://arvis:arvis@localhost:5432/arvis_test?sslmode=disable" go run cmd/arvis/main.go &
+  sleep 3
+  kill %1
+
+If arvis_test does not exist yet, create it first:
+
+  sudo -u postgres psql -c "CREATE DATABASE arvis_test OWNER arvis;"
+
+
+RUNNING TESTS
+-------------
+All tests (run this before every commit):
+
+  make test
+
+Unit tests only (no database required):
+
+  make test-unit
+
+Integration tests only (requires arvis_test database):
+
+  make test-integration
+
+Individual package:
+
+  go test ./internal/detector/... -v
+  TEST_DATABASE_URL="postgres://arvis:arvis@localhost:5432/arvis_test?sslmode=disable" go test ./internal/store/... -v
+
+
+WHAT EACH TEST FILE COVERS
+---------------------------
+internal/detector/rules_test.go   — anomaly detection rules, boundary values, multi-rule firing
+internal/store/requests_test.go   — request insert, duplicate ID rejection, ordering, limit, empty slice
+internal/store/anomalies_test.go  — anomaly insert, foreign key enforcement, ordering, empty slice
+
+
+ADDING NEW MIGRATIONS
+---------------------
+After adding a new migration file to migrations/:
+
+  DATABASE_URL="postgres://arvis:arvis@localhost:5432/arvis_test?sslmode=disable" go run cmd/arvis/main.go &
+  sleep 3
+  kill %1
+
+This applies the new migration to the test database.
+
+
+DATABASES
+---------
+arvis       — development database, never touched by tests
+arvis_test  — test database, wiped and rewritten by test suite
