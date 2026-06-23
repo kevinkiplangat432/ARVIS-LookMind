@@ -11,8 +11,8 @@
 This document is the technical reference for ARVIS. It covers architecture, data flow, every internal package, the API contract, the dashboard, testing, and deployment in depth.
 
 For context on why this system exists and how it evolved from a Python SDK, start with [`docs/HISTORY.md`](docs/HISTORY.md).
+For the full vision of what ARVIS is being built toward, see [`docs/vision.md`](docs/vision.md).
 For a high-level introduction and quick-start, see [`README.md`](README.md).
-For the feature build tracker, see [`FEATURES.md`](FEATURES.md).
 
 ---
 
@@ -512,7 +512,7 @@ server {
 
 ### Production — Phase 3
 
-Multiple stateless Go instances behind a load balancer. Postgres moves to a managed database (RDS, Cloud SQL, or equivalent). Container orchestration (ECS Fargate or Kubernetes) handles zero-downtime deploys and automatic restarts. Prometheus and Grafana provide observability. See [`FEATURES.md`](FEATURES.md) Phase 4 for the full list of infrastructure work.
+Multiple stateless Go instances behind a load balancer. Postgres moves to a managed database (RDS, Cloud SQL, or equivalent). Container orchestration (ECS Fargate or Kubernetes) handles zero-downtime deploys and automatic restarts. Prometheus and Grafana provide observability.
 
 ---
 

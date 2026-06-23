@@ -100,7 +100,7 @@ The current system is documented in full in [`DOCUMENTATION.md`](../DOCUMENTATIO
 - Three anomaly detection rules: high latency, high token usage, upstream 5xx errors
 - A React dashboard polling the API every 5 seconds
 
-The immediate roadmap — PII detection, a Redis-backed policy engine, per-client identity, a kill switch — is tracked in [`FEATURES.md`](../FEATURES.md).
+The immediate roadmap — PII detection, a Redis-backed policy engine, per-client identity, a kill switch — is described in [`docs/vision.md`](vision.md).
 
 ---
 

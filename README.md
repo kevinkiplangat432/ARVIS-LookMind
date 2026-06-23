@@ -208,7 +208,7 @@ Multiple stateless Go instances behind a load balancer. Managed Postgres with au
 
 ## What's Coming
 
-The next capabilities in order of priority — tracked in full in [`FEATURES.md`](FEATURES.md):
+The next capabilities in order of priority:
 
 1. **PII detection and masking** — Kenyan National ID, M-PESA, KRA PIN detected and tokenised before any data leaves the organisation
 2. **Redis-backed policy engine** — per-client token budgets and blocked topics, enforced on every request with no restart required
@@ -266,7 +266,7 @@ git commit -m 'dashboard: auto-poll anomaly feed every 5s'
 | Document | Purpose |
 |---|---|
 | [`docs/HISTORY.md`](docs/HISTORY.md) | Origin story — why this exists and how it evolved |
-| [`FEATURES.md`](FEATURES.md) | Build tracker — every feature, its status and location in the codebase |
+| [`docs/vision.md`](docs/vision.md) | Vision — the full picture of what ARVIS is being built toward |
 | [`DOCUMENTATION.md`](DOCUMENTATION.md) | Technical reference — architecture, data flow, API spec, deployment |
 
 ---
