@@ -1,37 +1,67 @@
-ARVIS Test Suite
-================
+ARVIS Test Suite & CLI Reference
+=================================
+
+BUILDING THE BINARY
+-------------------
+Always build from the repo root:
+
+  go build -o arvis ./cmd/arvis/
+
+Never run go run cmd/arvis/main.go — use the compiled binary or:
+
+  go run ./cmd/arvis/
+
+
+CLI COMMANDS
+------------
+Interactive mode (no arguments):
+
+  ./arvis
+
+This shows a menu — enter 1, 2, or 3 to select a mode.
+
+Subcommands (scriptable, CI-friendly):
+
+  ./arvis server          — start proxy on :8080 and API on :8081
+  ./arvis test            — run full test suite against arvis_test database
+  ./arvis migrate         — run migrations up (default)
+  ./arvis migrate up      — run migrations up explicitly
+  ./arvis migrate down    — roll back all migrations
+  ./arvis --help          — show all commands
+  ./arvis server --help   — help for individual command
+
 
 SETUP (run once, or after adding new migrations)
 -------------------------------------------------
-Apply migrations to the test database:
-
-  DATABASE_URL="postgres://arvis:arvis@localhost:5432/arvis_test?sslmode=disable" go run cmd/arvis/main.go &
-  sleep 3
-  kill %1
-
 If arvis_test does not exist yet, create it first:
 
   sudo -u postgres psql -c "CREATE DATABASE arvis_test OWNER arvis;"
 
+Apply migrations to the test database:
+
+  DATABASE_URL="postgres://arvis:arvis@localhost:5432/arvis_test?sslmode=disable" ./arvis migrate up
+
+After adding new migration files, run the same command to apply them.
+
 
 RUNNING TESTS
 -------------
-All tests (run this before every commit):
+Using the binary (recommended):
 
-  make test
+  TEST_DATABASE_URL="postgres://arvis:arvis@localhost:5432/arvis_test?sslmode=disable" ./arvis test
 
-Unit tests only (no database required):
+Using make:
 
-  make test-unit
+  make test            — all tests
+  make test-unit       — unit tests only, no database required
+  make test-integration — integration tests only, requires arvis_test
 
-Integration tests only (requires arvis_test database):
-
-  make test-integration
-
-Individual package:
+Using go test directly:
 
   go test ./internal/detector/... -v
   TEST_DATABASE_URL="postgres://arvis:arvis@localhost:5432/arvis_test?sslmode=disable" go test ./internal/store/... -v
+
+Run make test before every commit.
 
 
 WHAT EACH TEST FILE COVERS
@@ -41,18 +71,14 @@ internal/store/requests_test.go   — request insert, duplicate ID rejection, or
 internal/store/anomalies_test.go  — anomaly insert, foreign key enforcement, ordering, empty slice
 
 
-ADDING NEW MIGRATIONS
----------------------
-After adding a new migration file to migrations/:
-
-  DATABASE_URL="postgres://arvis:arvis@localhost:5432/arvis_test?sslmode=disable" go run cmd/arvis/main.go &
-  sleep 3
-  kill %1
-
-This applies the new migration to the test database.
-
-
 DATABASES
 ---------
 arvis       — development database, never touched by tests
 arvis_test  — test database, wiped and rewritten by test suite
+
+
+ALWAYS RUN FROM REPO ROOT
+--------------------------
+All commands assume you are in ~/Documents/development/ARVIS.
+The binary reads migrations/ relative to the working directory.
+Running from any other directory will cause migration path errors.
