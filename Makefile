@@ -2,12 +2,20 @@
 
 dev:
 	docker compose up -d
+run:
+	go run ./cmd/arvis/ server
 
 build:
-	go build ./cmd/arvis
+	go build -o arvis ./cmd/arvis/
 
 test:
-	go test ./...
+	TEST_DATABASE_URL="postgres://arvis:arvis@localhost:5432/arvis_test?sslmode=disable" go test ./... -v
+
+test-unit:
+	go test ./internal/detector/... -v
+
+test-integration:
+	TEST_DATABASE_URL="postgres://arvis:arvis@localhost:5432/arvis_test?sslmode=disable" go test ./internal/store/... -v
 
 down:
 	docker compose down

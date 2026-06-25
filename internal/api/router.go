@@ -16,8 +16,11 @@ func NewRouter(db *pgxpool.Pool, logger *slog.Logger) http.Handler {
 	r.Use(withLogging(logger))
 
 	r.Get("/health", handlers.Health)
-	r.Get("/requests", handlers.ListRequests(db))
-	r.Get("/anomalies", handlers.ListAnomalies(db))
+
+	r.Route("/api", func(r chi.Router) {
+		r.Get("/requests", handlers.ListRequests(db))
+		r.Get("/anomalies", handlers.ListAnomalies(db))
+	})
 
 	return r
 }
