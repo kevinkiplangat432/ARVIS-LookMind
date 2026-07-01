@@ -1,0 +1,12 @@
+// written to be reviewed 
+internal/config/config.go
+cmd/arvis/commands/server.go
+internal/proxy/forwarder.go
+
+
+// not yet to be reviewed
+internal/store/requests.go and internal/store/anomalies.go
+internal/detector/rules.go
+internal/api/router.go and internal/api/handlers/
+dashboard/src/App.tsx
+dashboard/src/api/client.ts

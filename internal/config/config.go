@@ -56,3 +56,18 @@ func Load() *Config {
 }
 
 
+// code revew 1 
+// 
+// Lines 11–18 (type Config struct): This is your "Source of Truth." By centralizing configuration into a struct, you prevent "magic strings" from being scattered across your codebase.
+// Lines 21–26 (getEnv): A helper to provide sensible defaults. This makes the developer experience (DX) better because the app "just works" locally without a .env file
+// Lines 43–47 (The TERMINATION): This is the Fail-Fast Principle. It is much better to crash at second 0 than to start the server and have 1,000 requests fail 5 minutes later because of a missing key.
+
+// soc 2 type ii pass/fail analysis
+// verdict fail 
+// Secret Masking (Fail): If you ever use fmt.Printf("%+v", cfg) for debugging, your APIKey and DatabaseURL (which contains the password) will be printed in plain text to your logs.Remediation: Implement the Stringer interface to mask sensitive values (shown in the refactor below).
+// Audit Trail (Pass): You are using slog.Error for the missing API key. This provides the "Evidence of Control" auditors love to see.
+// Environment Isolation (Warning): Your defaults (like the localhost Postgres URL) are great for local dev, but in a SOC 2 environment, you must ensure these defaults cannot accidentally be used in Production.
+
+//scaling to 1000 RPS 
+// Data Leakage (High Risk): Your DatabaseURL default contains postgres://arvis:arvis.... If an error occurs during connection, many Go drivers return the full connection string in the error message.
+// Performance (Pass): Configuration is usually loaded once at startup. This file isn't on the "hot path" of your 1,000 RPS, so its performance is fine. However, Validation is the key to stability.

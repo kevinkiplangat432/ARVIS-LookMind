@@ -82,3 +82,5 @@ ALWAYS RUN FROM REPO ROOT
 All commands assume you are in ~/Documents/development/ARVIS.
 The binary reads migrations/ relative to the working directory.
 Running from any other directory will cause migration path errors.
+
+
