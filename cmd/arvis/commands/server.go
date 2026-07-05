@@ -37,7 +37,10 @@ func startServer() error {
 	}))
 	slog.SetDefault(logger)
 
-	cfg := config.Load()
+	cfg, err := config.Load()
+	if err != nil{
+		return fmt.Errorf("failed to load configuration: %w", err)
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

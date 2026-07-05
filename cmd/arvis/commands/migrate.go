@@ -24,7 +24,10 @@ var migrateCmd = &cobra.Command{
 }
 
 func runMigrate(direction string) error {
-	cfg := config.Load()
+	cfg, err := config.Load()
+	if err != nil {
+		return fmt.Errorf("Failed to load configuration: %w", err)
+	}
 
 	m, err := migrate.New("file://migrations", cfg.DatabaseURL)
 	if err != nil {
