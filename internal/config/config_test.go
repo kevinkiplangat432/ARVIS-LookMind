@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"testing"
 )
@@ -14,7 +15,10 @@ func TestLoad_Defaults(t *testing.T) {
 	os.Setenv("API_KEY", "test-key-123")
 	defer os.Unsetenv("API_KEY") // Clean up after the test finishes
 
-	cfg := Load()
+	cfg, err := Load()
+	if err != nil {
+		fmt.Errorf("failed to load configurations %w", err)
+	}
 
 	// Verify that fallbacks are applied correctly
 	if cfg.ProxyAddr != ":8080" {
@@ -41,8 +45,10 @@ func TestLoad_CustomValues(t *testing.T) {
 		os.Unsetenv("API_KEY")
 	}()
 
-	cfg := Load()
-
+	cfg, err := Load()
+	if err != nil {
+		fmt.Errorf("failed to load configurations %w", err)
+	}
 	// Verify that our custom values were successfully read and parsed
 	if cfg.ProxyAddr != ":9090" {
 		t.Errorf("Expected custom ProxyAddr ':9090', got '%s'", cfg.ProxyAddr)
@@ -60,7 +66,10 @@ func TestLoad_InvalidMaxTokensFallback(t *testing.T) {
 		os.Unsetenv("MAX_TOKENS")
 	}()
 
-	cfg := Load()
+	cfg, err := Load()
+	if err != nil {
+		fmt.Errorf("failed to load configurations %w", err)
+	}
 
 	// Verify that the error handling fallback mechanism safely kicks in
 	if cfg.MaxTokens != 4096 {
