@@ -1,3 +1,5 @@
+// review round 1: uneccessary comments to be cleaned up afterwards
+
 package commands
 
 import (
@@ -23,9 +25,9 @@ Version 0.4.0
 `
 
 var rootCmd = &cobra.Command{
-	Use:   "arvis",
-	Short: "ARVIS — AI infrastructure monitoring proxy",
-	Long:  banner,
+	Use:   "arvis",  // one line usage message
+	Short: "ARVIS — AI infrastructure monitoring proxy", // short description to be shown in the help output of it's parent.
+	Long:  banner,  // long is the message shown in the help this command
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// No subcommand passed — show interactive menu
 		fmt.Print(banner)
@@ -51,14 +53,15 @@ var rootCmd = &cobra.Command{
 		}
 	},
 }
-
+// load the environment configurations
 func Execute() {
 	_ = godotenv.Load()
+
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}
 }
-
+// 
 func init() {
 	rootCmd.AddCommand(serverCmd)
 	rootCmd.AddCommand(testCmd)
