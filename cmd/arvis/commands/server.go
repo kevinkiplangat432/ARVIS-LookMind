@@ -33,17 +33,16 @@ var serverCmd = &cobra.Command{
 
 func startServer() error {
 	// for more control we create a logger with a different handler
-	// 
-	
+	//
+
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 		Level: slog.LevelInfo,
 	}))
-	
+
 	slog.SetDefault(logger)
 
-
 	cfg, err := config.Load()
-	if err != nil{
+	if err != nil {
 		return fmt.Errorf("failed to load configuration: %w", err)
 	}
 	// TODO: come back and understand this AI generated part.
@@ -125,16 +124,3 @@ func startServer() error {
 	logger.Info("shutdown complete")
 	return nil
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
