@@ -1,5 +1,4 @@
 package main
-// review 1: uneccessary comments to be removed later in the main branch.
 import (
 	"github.com/kevinkiplangat432/arvis/cmd/arvis/commands"
 )
