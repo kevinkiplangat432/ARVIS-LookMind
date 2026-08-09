@@ -36,7 +36,7 @@ Your Application
 │                                             │
 │  Proxy :8080          API :8081             │
 │  ─────────────        ────────────          │
-│  intercept            GET /health           │
+│  intercept            GET /api/v1/health/   │
 │  forward              GET /requests         │
 │  detect anomalies     GET /anomalies        │
 │  log async                                  │
