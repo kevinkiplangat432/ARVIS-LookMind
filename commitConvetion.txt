@@ -1,0 +1,9 @@
+
+
+type(optional scope): Short description
+common types 
+feat -- new features 
+fix  -- bugs 
+docs --  just the documentation
+refactor -- e.g reviewed spotted then spotted a room for improving abd you did 
+chore -- updating routine task
