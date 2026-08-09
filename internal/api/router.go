@@ -14,7 +14,7 @@ func NewRouter() chi.Router {
 	r.Use(middleware.Recoverer) // prevent the api from crashing on panic
 
 	// mount the sub routers
-	r.Mount("/api/v1/health", api.Health())
+	r.Mount("/api/v1/health", handlers.Health())
 
 	return r 
 
