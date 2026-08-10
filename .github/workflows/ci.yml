@@ -1,32 +1,32 @@
 name: Go CI
 
-# Trigger the workflow on pushes or pull requests to your main branch
+# Trigger the workflow on pushes or pull requests to main/master
 on:
   push:
-    branches: [ main, master ]
+    branches: [main, master]
   pull_request:
-    branches: [ main, master ]
+    branches: [main, master]
 
 jobs:
   test:
     name: Build and Run Tests
-    runs-on: ubuntu-latest # Uses the latest Linux environment
+    runs-on: ubuntu-latest
 
     steps:
-    # Check out your repository code onto the runner
-    - name: Checkout Code
-      uses: actions/checkout@v4
+      # Check out repository
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-    # Install and configure Go on the virtual runner
-    - name: Set up Go
-      uses: actions/checkout@v4
-      with:
-        go-version-file: 'go.mod' # Automatically matches the Go version listed in your go.mod
+      # Install and configure Go
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.mod"
 
-    # Download your Go package dependencies (like go-chi)
-    - name: Install Dependencies
-      run: go mod download
+      # Download dependencies
+      - name: Install Dependencies
+        run: go mod download
 
-    # Run your entire testing suite (including health_test.go)
-    - name: Run Tests
-      run: go test -v -race ./...
+      # Run tests with race detection
+      - name: Run Tests
+        run: go test -v -race ./...
