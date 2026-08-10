@@ -1,0 +1,32 @@
+name: Go CI
+
+# Trigger the workflow on pushes or pull requests to main/master
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  test:
+    name: Build and Run Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      # Check out repository
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # Install and configure Go
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.mod"
+
+      # Download dependencies
+      - name: Install Dependencies
+        run: go mod download
+
+      # Run tests with race detection
+      - name: Run Tests
+        run: go test -v -race ./...
