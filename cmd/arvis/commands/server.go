@@ -20,6 +20,9 @@ var serverCmd = &cobra.Command{
 }
 
 func startServer() error {
+	if err := cfg.RequireAPIKey(); err != nil {
+		return err
+	}
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 		Level: slog.LevelInfo,
 	}))

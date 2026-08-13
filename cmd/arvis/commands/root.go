@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/joho/godotenv"
+	"github.com/kevinkiplangat432/arvis/internal/config"
 	"github.com/spf13/cobra"
 )
 
@@ -21,6 +22,9 @@ const banner = `
 Automated Runtime Visibility & Intelligence System
 Version 0.4.0
 `
+
+var cfg *config.Config
+
 
 
 var rootCmd = &cobra.Command{
@@ -53,8 +57,18 @@ var rootCmd = &cobra.Command{
 }
 
 
+
+
 func Execute() {
 	_ = godotenv.Load()
+
+	loaded, err := config.Load()
+	if err != nil {
+		fmt.Println("failed to load config:", err)
+		os.Exit(1)
+	}
+	cfg = loaded
+
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}
