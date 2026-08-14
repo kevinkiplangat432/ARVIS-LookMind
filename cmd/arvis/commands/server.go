@@ -5,12 +5,9 @@ import (
 	"log/slog"
 	"os"
 	"net/http"
-	"context"
-	"time"
-
 	"github.com/spf13/cobra"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/kevinkiplangat432/arvis/internal/api"
+	"github.com/kevinkiplangat432/arvis/internal/store"
 )
 
 var serverCmd = &cobra.Command{
@@ -32,19 +29,16 @@ func startServer() error {
 		return err
 	}
 	
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	db, err := pgxpool.New(ctx, cfg.DatabaseURL)
+	// Call internal store package instead of pgxpool directly
+    db, err := store.Connect(cfg.DatabaseURL)
 	if err != nil {
-		return fmt.Errorf("failed to connect to database: %w", err)
+    // If internal/store/db.go fails, we catch it here and crash the app safely
+    return fmt.Errorf("failed to initialize store: %w", err)
 	}
-	defer db.Close()
+	defer db.Close() // Keep the lifecycle management here in main/server start
 
-	if err := db.Ping(ctx); err != nil {
-		return fmt.Errorf("database ping failed: %w", err)
-	}
 	logger.Info("database connected")
+
 
 	srvRouter := api.NewRouter()
 

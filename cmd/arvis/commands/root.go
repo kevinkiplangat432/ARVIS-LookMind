@@ -23,9 +23,8 @@ Automated Runtime Visibility & Intelligence System
 Version 0.4.0
 `
 
+// cfg holds the global application configurations
 var cfg *config.Config
-
-
 
 var rootCmd = &cobra.Command{
 	Use: "arvis",
