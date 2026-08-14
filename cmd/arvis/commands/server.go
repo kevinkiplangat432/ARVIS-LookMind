@@ -42,9 +42,10 @@ func startServer() error {
 
 	srvRouter := api.NewRouter()
 
-	if err := http.ListenAndServe(":8080", srvRouter); err != nil {
+	logger.Info("api listening", "addr", cfg.APIAddr)
+	if err := http.ListenAndServe(cfg.APIAddr, srvRouter); err != nil {
 		logger.Error("api server error", "error", err)
-		os.Exit(1)
+		return fmt.Errorf("api server error: %w", err)
 	}
 
 	logger.Info("shutdown complete")
