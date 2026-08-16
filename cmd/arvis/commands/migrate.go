@@ -6,7 +6,6 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
-	"github.com/kevinkiplangat432/arvis/internal/config"
 	"github.com/spf13/cobra"
 )
 
@@ -24,11 +23,7 @@ var migrateCmd = &cobra.Command{
 }
 
 func runMigrate(direction string) error {
-	cfg, err := config.Load()
-	if err != nil {
-		return fmt.Errorf("Failed to load configuration: %w", err)
-	}
-
+	
 	m, err := migrate.New("file://migrations", cfg.DatabaseURL)
 	if err != nil {
 		return fmt.Errorf("failed to init migrations: %w", err)

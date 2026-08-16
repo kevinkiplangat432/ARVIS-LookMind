@@ -1,5 +1,3 @@
-// review round 1: uneccessary comments to be cleaned up afterwards
-
 package commands
 
 import (
@@ -9,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/joho/godotenv"
+	"github.com/kevinkiplangat432/arvis/internal/config"
 	"github.com/spf13/cobra"
 )
 
@@ -24,19 +23,21 @@ Automated Runtime Visibility & Intelligence System
 Version 0.4.0
 `
 
+// cfg holds the global application configurations
+var cfg *config.Config
+
 var rootCmd = &cobra.Command{
-	Use:   "arvis",  // one line usage message
-	Short: "ARVIS — AI infrastructure monitoring proxy", // short description to be shown in the help output of it's parent.
-	Long:  banner,  // long is the message shown in the help this command
+	Use: "arvis",
+	Short: "ARVIS - AI infrastructure monitoring proxy",
+	Long: banner,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		// No subcommand passed — show interactive menu
 		fmt.Print(banner)
 		fmt.Println("Select mode:")
 		fmt.Println("  [1] Run server")
 		fmt.Println("  [2] Run tests")
 		fmt.Println("  [3] Run migrations")
 		fmt.Print("\nEnter choice: ")
-
+		
 		scanner := bufio.NewScanner(os.Stdin)
 		scanner.Scan()
 		choice := strings.TrimSpace(scanner.Text())
@@ -53,15 +54,26 @@ var rootCmd = &cobra.Command{
 		}
 	},
 }
-// load the environment configurations
+
+
+
+
 func Execute() {
 	_ = godotenv.Load()
+
+	loaded, err := config.Load()
+	if err != nil {
+		fmt.Println("failed to load config:", err)
+		os.Exit(1)
+	}
+	cfg = loaded
 
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}
 }
-// 
+
+
 func init() {
 	rootCmd.AddCommand(serverCmd)
 	rootCmd.AddCommand(testCmd)
