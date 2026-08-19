@@ -1,6 +1,5 @@
 package store
 
-
 import (
 	"context"
 	"time"
@@ -13,20 +12,25 @@ type Anomaly struct {
 	RequestID string    `json:"request_id"`
 	Rule      string    `json:"rule"`
 	Detail    string    `json:"detail"`
+	Category  string    `json:"category"`
+	Severity  string    `json:"severity"`
+	Status    string    `json:"status"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
 func InsertAnomaly(ctx context.Context, db *pgxpool.Pool, a Anomaly) error {
 	_, err := db.Exec(ctx,
-		`INSERT INTO anomalies (id, request_id, rule, detail, created_at) VALUES ($1,$2,$3,$4,$5)`,
-		a.ID, a.RequestID, a.Rule, a.Detail, a.CreatedAt,
+		`INSERT INTO anomalies (id, request_id, rule, detail, category, severity, status, created_at)
+		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+		a.ID, a.RequestID, a.Rule, a.Detail, a.Category, a.Severity, a.Status, a.CreatedAt,
 	)
 	return err
 }
 
 func ListAnomalies(ctx context.Context, db *pgxpool.Pool, limit int) ([]Anomaly, error) {
 	rows, err := db.Query(ctx,
-		`SELECT id, request_id, rule, detail, created_at FROM anomalies ORDER BY created_at DESC LIMIT $1`, limit)
+		`SELECT id, request_id, rule, detail, category, severity, status, created_at
+		 FROM anomalies ORDER BY created_at DESC LIMIT $1`, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -35,7 +39,7 @@ func ListAnomalies(ctx context.Context, db *pgxpool.Pool, limit int) ([]Anomaly,
 	out := make([]Anomaly, 0)
 	for rows.Next() {
 		var a Anomaly
-		if err := rows.Scan(&a.ID, &a.RequestID, &a.Rule, &a.Detail, &a.CreatedAt); err != nil {
+		if err := rows.Scan(&a.ID, &a.RequestID, &a.Rule, &a.Detail, &a.Category, &a.Severity, &a.Status, &a.CreatedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, a)
