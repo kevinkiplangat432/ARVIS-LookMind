@@ -1,14 +1,19 @@
 package api
 
 import (
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"os"
 )
 
 func TestNewRouterIntegration(t *testing.T) {
+	//initialize logger for the test
+	logger := slog.New(slog.NewJSONHandler(os.Stderr, nil))
+	
 	// Initialize your fully wired central hub router
-	hubRouter := NewRouter()
+	hubRouter := NewRouter(db ,logger ) 
 
 	// Simulate a full API request targeting the complete combined path.
 	// Note: include the trailing slash to hit the root of the mounted sub-router.

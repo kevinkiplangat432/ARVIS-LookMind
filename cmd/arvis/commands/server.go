@@ -40,7 +40,7 @@ func startServer() error {
 	logger.Info("database connected")
 
 
-	srvRouter := api.NewRouter()
+	srvRouter := api.NewRouter(db, logger)
 
 	logger.Info("api listening", "addr", cfg.APIAddr)
 	if err := http.ListenAndServe(cfg.APIAddr, srvRouter); err != nil {
