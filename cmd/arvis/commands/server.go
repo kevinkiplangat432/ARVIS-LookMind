@@ -25,7 +25,7 @@ func startServer() error {
 	}))
 	slog.SetDefault(logger)
 
-	if err := cfg.RequireAPIKey(); err != nil {
+	if err := cfg.ResolveProviders(); err != nil {
 		return err
 	}
 	
