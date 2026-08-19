@@ -1,9 +1,9 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
+	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -11,28 +11,38 @@ import (
 )
 
 // Requests returns an isolated router for request-log endpoints, same
-// pattern as Health() in health.go, an isolated sub-router that gets
+// pattern as Health() in health.go — an isolated sub-router that gets
 // mounted onto the main one.
 func Requests(db *pgxpool.Pool) chi.Router {
 	r := chi.NewRouter()
 
 	r.Get("/", func(w http.ResponseWriter, req *http.Request) {
-		// TODO: call store.ListRequests(context, db, limit).
-		//
-		// Where should limit come from? Hardcoding it works for now,
-		// but think about whether a query parameter (?limit=50) makes
-		// more sense for something a dashboard will call repeatedly.
-		//
-		// TODO: handle the error case first (what status code should
-		// a failed database query return to the caller?), then encode
-		// the successful result as JSON with json.NewEncoder(w).Encode(...).
-		//
-		// Don't forget w.Header().Set("Content-Type", "application/json")
-		// before writing, same as health.go already does.
-		_ = context.Background()
-		_ = json.NewEncoder
-		_ = store.ListRequests
+		limit := 50
+		if v := req.URL.Query().Get("limit"); v != "" {
+			if parsed, err := strconv.Atoi(v); err == nil && parsed > 0 {
+				limit = parsed
+			}
+		}
+
+		results, err := store.ListRequests(req.Context(), db, limit)
+		if err != nil {
+			writeJSONError(w, http.StatusInternalServerError, "failed to list requests")
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(results)
 	})
 
 	return r
+}
+
+// writeJSONError is a small shared helper so every handler returns
+// errors in the same shape. Lives here since request.go is the first
+// handler that needs it; anomalies.go will reuse it.
+func writeJSONError(w http.ResponseWriter, status int, msg string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	json.NewEncoder(w).Encode(map[string]string{"error": msg})
 }
