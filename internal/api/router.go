@@ -17,6 +17,8 @@ func NewRouter(db *pgxpool.Pool, logger *slog.Logger) chi.Router {
 
 	// mount the sub routers
 	r.Mount("/api/v1/health", handlers.Health())
+	r.Mount("/api/v1/request", handlers.Requests(db))
+	r.Mount("api/v1/anomalies", handlers.Anomalies(db))
 
 	return r 
 }
