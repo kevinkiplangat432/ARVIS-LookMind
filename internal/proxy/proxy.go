@@ -1,22 +1,21 @@
 package proxy
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/kevinkiplangat432/arvis/internal/config"
+	"github.com/kevinkiplangat432/arvis/internal/store"
 )
 
-// Proxy is the reverse proxy that sits in front of every configured AI
-// provider. Exported as a type, not a bare handler func, so Phase 6's
-// latency/token capture and Phase 7's detector hooks have somewhere to
-// attach state (an HTTP client, in-memory rate counters) without
-// changing this type's shape from the outside.
 type Proxy struct {
 	cfg    *config.Config
 	db     *pgxpool.Pool
@@ -34,6 +33,7 @@ func New(cfg *config.Config, db *pgxpool.Pool, logger *slog.Logger) *Proxy {
 }
 
 func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
 	ctx := r.Context()
 
 	identity, err := authenticate(ctx, p.db, r)
@@ -42,7 +42,7 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	provider, body, err := resolveProvider(p.cfg, r)
+	provider, model, body, err := resolveProvider(p.cfg, r)
 	if err != nil {
 		status := http.StatusBadRequest
 		if errors.Is(err, ErrUnknownModel) {
@@ -59,10 +59,6 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	outbound.Header = r.Header.Clone()
-	// The caller's ARVIS key was only for authenticating to ARVIS itself
-	// — it must never be forwarded upstream. The real provider key is
-	// injected here instead, which is what lets a client hold exactly
-	// one credential regardless of how many providers sit behind ARVIS.
 	outbound.Header.Set("Authorization", "Bearer "+provider.APIKey)
 
 	resp, err := p.client.Do(outbound)
@@ -72,19 +68,48 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	defer resp.Body.Close()
 
+	// Buffered rather than streamed, deliberately: token usage lives at
+	// the end of a typical JSON response body, so it can't be read
+	// without the whole thing. This is a real trade-off — it adds
+	// latency proportional to response size and won't work for
+	// streaming (SSE) responses at all. Both are known limitations to
+	// revisit once streaming support is actually needed.
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		p.writeError(w, http.StatusBadGateway, fmt.Errorf("failed to read upstream response: %w", err))
+		return
+	}
+
 	for k, values := range resp.Header {
 		for _, v := range values {
 			w.Header().Add(k, v)
 		}
 	}
 	w.WriteHeader(resp.StatusCode)
-	io.Copy(w, resp.Body)
+	w.Write(respBody)
 
-	// identity and provider are already resolved by this point in the
-	// request — Phase 6 attaches latency/token capture and
-	// store.InsertRequest right here, once the response has actually
-	// reached the caller, so logging never adds to response latency.
-	_ = identity
+	latencyMs := int(time.Since(start).Milliseconds())
+	go p.logRequest(identity, provider, model, resp.StatusCode, latencyMs, respBody)
+}
+
+func (p *Proxy) logRequest(identity *store.Identity, provider config.Provider, model string, statusCode, latencyMs int, respBody []byte) {
+	promptTokens, completionTokens := extractTokenUsage(respBody)
+
+	req := store.Request{
+		ID:           uuid.NewString(),
+		IdentityID:   &identity.ID,
+		Provider:     provider.Name,
+		Model:        model,
+		PromptTokens: promptTokens,
+		CompTokens:   completionTokens,
+		LatencyMs:    latencyMs,
+		StatusCode:   statusCode,
+		CreatedAt:    time.Now(),
+	}
+
+	if err := store.InsertRequest(context.Background(), p.db, req); err != nil {
+		p.logger.Error("failed to log request", "error", err.Error())
+	}
 }
 
 func (p *Proxy) writeError(w http.ResponseWriter, status int, err error) {
