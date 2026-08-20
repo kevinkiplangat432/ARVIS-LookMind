@@ -13,37 +13,33 @@ import (
 
 var ErrUnknownModel = errors.New("request model does not match any configured provider")
 
-// bodyRequest is deliberately minimal — ARVIS only needs the model
-// field to route, it doesn't need to understand a provider's full
-// request schema.
 type bodyRequest struct {
 	Model string `json:"model"`
 }
 
 // resolveProvider reads the request body far enough to find the model
-// field, then returns both the matched provider and an untouched copy
-// of the body for forwarding. An http.Request's body can only be read
-// once, so this hands back a fresh io.ReadCloser built from the bytes
-// already consumed.
-func resolveProvider(cfg *config.Config, r *http.Request) (config.Provider, io.ReadCloser, error) {
+// field, then returns the matched provider, the model string itself
+// (needed for logging, not just routing), and an untouched copy of the
+// body for forwarding.
+func resolveProvider(cfg *config.Config, r *http.Request) (config.Provider, string, io.ReadCloser, error) {
 	raw, err := io.ReadAll(r.Body)
 	if err != nil {
-		return config.Provider{}, nil, fmt.Errorf("failed to read request body: %w", err)
+		return config.Provider{}, "", nil, fmt.Errorf("failed to read request body: %w", err)
 	}
 	r.Body.Close()
 
 	var parsed bodyRequest
 	if err := json.Unmarshal(raw, &parsed); err != nil {
-		return config.Provider{}, nil, fmt.Errorf("failed to parse request body: %w", err)
+		return config.Provider{}, "", nil, fmt.Errorf("failed to parse request body: %w", err)
 	}
 	if parsed.Model == "" {
-		return config.Provider{}, nil, fmt.Errorf(`request body is missing a "model" field`)
+		return config.Provider{}, "", nil, fmt.Errorf(`request body is missing a "model" field`)
 	}
 
 	provider, ok := cfg.ModelRoutes[parsed.Model]
 	if !ok {
-		return config.Provider{}, nil, ErrUnknownModel
+		return config.Provider{}, "", nil, ErrUnknownModel
 	}
 
-	return provider, io.NopCloser(bytes.NewReader(raw)), nil
+	return provider, parsed.Model, io.NopCloser(bytes.NewReader(raw)), nil
 }
