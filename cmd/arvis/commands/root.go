@@ -20,7 +20,7 @@ const banner = `
 ╚═╝  ╚═╝ ╚═╝  ╚═╝   ╚═══╝   ╚═╝ ╚══════╝
 
 Automated Runtime Visibility & Intelligence System
-Version 0.4.0
+Version 0.7.0
 `
 
 // cfg holds the global application configurations
@@ -48,7 +48,7 @@ var rootCmd = &cobra.Command{
 		case "2":
 			return testCmd.RunE(cmd, args)
 		case "3":
-			return migrateCmd.RunE(cmd, args)
+			return runMigrate("up", nil)
 		default:
 			return fmt.Errorf("invalid choice %q — enter 1, 2, or 3", choice)
 		}
