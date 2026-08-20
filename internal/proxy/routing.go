@@ -21,7 +21,7 @@ type bodyRequest struct {
 // field, then returns the matched provider, the model string itself
 // (needed for logging, not just routing), and an untouched copy of the
 // body for forwarding.
-func resolveProvider(cfg *config.Config, r *http.Request) (config.Provider, string, io.ReadCloser, error) {
+func resolveProvider(cfg *config.Config, r *http.Request) (config.Provider, string, io.Reader, error) {
 	raw, err := io.ReadAll(r.Body)
 	if err != nil {
 		return config.Provider{}, "", nil, fmt.Errorf("failed to read request body: %w", err)
@@ -41,5 +41,5 @@ func resolveProvider(cfg *config.Config, r *http.Request) (config.Provider, stri
 		return config.Provider{}, "", nil, ErrUnknownModel
 	}
 
-	return provider, parsed.Model, io.NopCloser(bytes.NewReader(raw)), nil
+	return provider, parsed.Model, bytes.NewReader(raw), nil
 }

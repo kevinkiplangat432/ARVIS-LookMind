@@ -8,27 +8,35 @@ import (
 	"log/slog"
 	"net/http"
 	"time"
+	"bytes"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/kevinkiplangat432/arvis/internal/config"
+	"github.com/kevinkiplangat432/arvis/internal/detector"
 	"github.com/kevinkiplangat432/arvis/internal/store"
 )
 
 type Proxy struct {
-	cfg    *config.Config
-	db     *pgxpool.Pool
-	logger *slog.Logger
-	client *http.Client
+	cfg      *config.Config
+	db       *pgxpool.Pool
+	logger   *slog.Logger
+	client   *http.Client
+	detector *detector.Detector
+}
+
+func newBodyReader(b []byte) io.ReadCloser {
+	return io.NopCloser(bytes.NewReader(b))
 }
 
 func New(cfg *config.Config, db *pgxpool.Pool, logger *slog.Logger) *Proxy {
 	return &Proxy{
-		cfg:    cfg,
-		db:     db,
-		logger: logger,
-		client: &http.Client{},
+		cfg:      cfg,
+		db:       db,
+		logger:   logger,
+		client:   &http.Client{},
+		detector: detector.New(db, logger),
 	}
 }
 
@@ -52,8 +60,16 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	requestBodyBytes, err := io.ReadAll(body)
+	if err != nil {
+		p.writeError(w, http.StatusInternalServerError, fmt.Errorf("failed to buffer request body: %w", err))
+		return
+	}
+
+	syncFlags := p.detector.CheckSync(ctx, identity.ID, model)
+
 	outboundURL := provider.BaseURL + r.URL.Path
-	outbound, err := http.NewRequestWithContext(ctx, r.Method, outboundURL, body)
+	outbound, err := http.NewRequestWithContext(ctx, r.Method, outboundURL, newBodyReader(requestBodyBytes))
 	if err != nil {
 		p.writeError(w, http.StatusInternalServerError, fmt.Errorf("failed to build outbound request: %w", err))
 		return
@@ -68,12 +84,6 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	defer resp.Body.Close()
 
-	// Buffered rather than streamed, deliberately: token usage lives at
-	// the end of a typical JSON response body, so it can't be read
-	// without the whole thing. This is a real trade-off — it adds
-	// latency proportional to response size and won't work for
-	// streaming (SSE) responses at all. Both are known limitations to
-	// revisit once streaming support is actually needed.
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		p.writeError(w, http.StatusBadGateway, fmt.Errorf("failed to read upstream response: %w", err))
@@ -89,11 +99,11 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Write(respBody)
 
 	latencyMs := int(time.Since(start).Milliseconds())
-	go p.logRequest(identity, provider, model, resp.StatusCode, latencyMs, respBody)
+	go p.logAndDetect(identity, provider, model, resp.StatusCode, latencyMs, requestBodyBytes, respBody, syncFlags)
 }
 
-func (p *Proxy) logRequest(identity *store.Identity, provider config.Provider, model string, statusCode, latencyMs int, respBody []byte) {
-	promptTokens, completionTokens := extractTokenUsage(respBody)
+func (p *Proxy) logAndDetect(identity *store.Identity, provider config.Provider, model string, statusCode, latencyMs int, requestBody, responseBody []byte, syncFlags []detector.Flag) {
+	promptTokens, completionTokens := extractTokenUsage(responseBody)
 
 	req := store.Request{
 		ID:           uuid.NewString(),
@@ -109,7 +119,18 @@ func (p *Proxy) logRequest(identity *store.Identity, provider config.Provider, m
 
 	if err := store.InsertRequest(context.Background(), p.db, req); err != nil {
 		p.logger.Error("failed to log request", "error", err.Error())
+		return
 	}
+
+	p.detector.RunAsync(req.ID, syncFlags, detector.AsyncInput{
+		IdentityID:   identity.ID,
+		Provider:     provider.Name,
+		Model:        model,
+		RequestBody:  requestBody,
+		ResponseBody: responseBody,
+		LatencyMs:    latencyMs,
+		StatusCode:   statusCode,
+	})
 }
 
 func (p *Proxy) writeError(w http.ResponseWriter, status int, err error) {
@@ -118,3 +139,4 @@ func (p *Proxy) writeError(w http.ResponseWriter, status int, err error) {
 	w.WriteHeader(status)
 	fmt.Fprintf(w, `{"error": %q}`, err.Error())
 }
+
