@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"time"
+	"strings"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -124,4 +125,46 @@ func RecordUsageAll(ctx context.Context, rdb *redis.Client, identityID, provider
 		return err
 	}
 	return RecordUsage(ctx, rdb, ScopeGlobal, "", tokens)
+}
+
+// CheckTopics scans the raw request body against every currently
+// blocked topic's keywords. Whole-body, case-insensitive substring
+// matching — the same pragmatic approach as detector.ContentRule, not
+// a semantic classifier. Good enough to prove the mechanism; a real
+// classifier is a drop-in upgrade later since it'd satisfy this same
+// function's contract.
+func CheckTopics(ctx context.Context, rdb *redis.Client, requestBody []byte) (*Violation, error) {
+	blocked, err := ListBlockedTopics(ctx, rdb)
+	if err != nil {
+		return nil, err
+	}
+	if len(blocked) == 0 {
+		return nil, nil
+	}
+
+	body := strings.ToLower(string(requestBody))
+	for _, key := range blocked {
+		topic, ok := GetTopic(key)
+		if !ok {
+			continue
+		}
+		for _, kw := range topic.Keywords {
+			if strings.Contains(body, strings.ToLower(kw)) {
+				return &Violation{
+					Rule: "blocked_topic_" + topic.Key, Severity: "high",
+					Detail: fmt.Sprintf("request matches blocked topic %q (%s)", topic.Name, topic.Source),
+				}, nil
+			}
+		}
+	}
+	return nil, nil
+}
+
+// Check is the single entry point the proxy calls — budgets first
+// (cheaper, no body scan needed), topics second.
+func Check(ctx context.Context, rdb *redis.Client, identityID, providerName string, requestBody []byte) (*Violation, error) {
+	if v, err := CheckBudgets(ctx, rdb, identityID, providerName); err != nil || v != nil {
+		return v, err
+	}
+	return CheckTopics(ctx, rdb, requestBody)
 }
