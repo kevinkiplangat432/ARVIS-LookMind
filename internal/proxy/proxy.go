@@ -82,6 +82,14 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	syncFlags := p.detector.CheckSync(ctx, identity.ID, model)
 
+
+	if isStreaming(requestBodyBytes) {
+		blocked := policy_ListBlockedTopicsSafe(ctx, p.rdb, p.logger)
+		p.serveStreaming(w, r, identity, provider, model, requestBodyBytes, blocked, start)
+		_ = syncFlags // sync detector flags aren't wired into streamed responses yet — the pre-flight policy check already ran on the initiating prompt either way
+		return
+	}
+
 	outboundURL := provider.BaseURL + r.URL.Path
 	outbound, err := http.NewRequestWithContext(ctx, r.Method, outboundURL, io.NopCloser(bytes.NewReader(requestBodyBytes)))
 	if err != nil {
@@ -114,6 +122,15 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	latencyMs := int(time.Since(start).Milliseconds())
 	go p.logAndDetect(identity, provider, model, resp.StatusCode, latencyMs, requestBodyBytes, respBody, syncFlags)
+}
+
+func policy_ListBlockedTopicsSafe(ctx context.Context, rdb *redis.Client, logger *slog.Logger) []string {
+	blocked, err := policy.ListBlockedTopics(ctx, rdb)
+	if err != nil {
+		logger.Error("failed to fetch blocked topics for streaming check", "error", err.Error())
+		return nil
+	}
+	return blocked
 }
 
 func (p *Proxy) logAndDetect(identity *store.Identity, provider config.Provider, model string, statusCode, latencyMs int, requestBody, responseBody []byte, syncFlags []detector.Flag) {
