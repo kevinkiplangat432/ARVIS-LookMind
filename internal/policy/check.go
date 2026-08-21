@@ -127,38 +127,7 @@ func RecordUsageAll(ctx context.Context, rdb *redis.Client, identityID, provider
 	return RecordUsage(ctx, rdb, ScopeGlobal, "", tokens)
 }
 
-// CheckTopics scans the raw request body against every currently
-// blocked topic's keywords. Whole-body, case-insensitive substring
-// matching — the same pragmatic approach as detector.ContentRule, not
-// a semantic classifier. Good enough to prove the mechanism; a real
-// classifier is a drop-in upgrade later since it'd satisfy this same
-// function's contract.
-func CheckTopics(ctx context.Context, rdb *redis.Client, requestBody []byte) (*Violation, error) {
-	blocked, err := ListBlockedTopics(ctx, rdb)
-	if err != nil {
-		return nil, err
-	}
-	if len(blocked) == 0 {
-		return nil, nil
-	}
 
-	body := strings.ToLower(string(requestBody))
-	for _, key := range blocked {
-		topic, ok := GetTopic(key)
-		if !ok {
-			continue
-		}
-		for _, kw := range topic.Keywords {
-			if strings.Contains(body, strings.ToLower(kw)) {
-				return &Violation{
-					Rule: "blocked_topic_" + topic.Key, Severity: "high",
-					Detail: fmt.Sprintf("request matches blocked topic %q (%s)", topic.Name, topic.Source),
-				}, nil
-			}
-		}
-	}
-	return nil, nil
-}
 
 // Check is the single entry point the proxy calls — budgets first
 // (cheaper, no body scan needed), topics second.
@@ -167,4 +136,40 @@ func Check(ctx context.Context, rdb *redis.Client, identityID, providerName stri
 		return v, err
 	}
 	return CheckTopics(ctx, rdb, requestBody)
+}
+
+// MatchText checks a piece of text against a specific set of blocked
+// topic keys, without touching Redis. Pulled out of CheckTopics so
+// the exact same matching logic works against a full request body
+// (checked once, needs Redis for the current blocklist) and a
+// streaming response's rolling buffer (checked on every chunk, where
+// hitting Redis each time would be the wrong trade-off).
+func MatchText(text string, blockedKeys []string) *Violation {
+	lower := strings.ToLower(text)
+	for _, key := range blockedKeys {
+		topic, ok := GetTopic(key)
+		if !ok {
+			continue
+		}
+		for _, kw := range topic.Keywords {
+			if strings.Contains(lower, strings.ToLower(kw)) {
+				return &Violation{
+					Rule: "blocked_topic_" + topic.Key, Severity: "high",
+					Detail: fmt.Sprintf("content matches blocked topic %q (%s)", topic.Name, topic.Source),
+				}
+			}
+		}
+	}
+	return nil
+}
+
+// CheckTopics now just fetches the current blocklist once and hands
+// off to MatchText — no behavior change, purely a refactor so the
+// kill switch can reuse the matching logic instead of duplicating it.
+func CheckTopics(ctx context.Context, rdb *redis.Client, requestBody []byte) (*Violation, error) {
+	blocked, err := ListBlockedTopics(ctx, rdb)
+	if err != nil {
+		return nil, err
+	}
+	return MatchText(string(requestBody), blocked), nil
 }
