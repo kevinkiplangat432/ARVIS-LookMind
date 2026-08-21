@@ -10,6 +10,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/kevinkiplangat432/arvis/internal/api"
+	"github.com/kevinkiplangat432/arvis/internal/policy"
 	"github.com/kevinkiplangat432/arvis/internal/proxy"
 	"github.com/kevinkiplangat432/arvis/internal/store"
 )
@@ -38,17 +39,20 @@ func startServer() error {
 		return fmt.Errorf("failed to initialize store: %w", err)
 	}
 	defer db.Close()
-
 	logger.Info("database connected")
+
+	rdb, err := policy.Connect(cfg.RedisAddr)
+	if err != nil {
+		return fmt.Errorf("failed to initialize policy store: %w", err)
+	}
+	defer rdb.Close()
+	logger.Info("policy store connected")
+
 	logger.Info("providers loaded", "count", len(cfg.Providers))
 
 	apiRouter := api.NewRouter(db, logger)
-	proxyHandler := proxy.New(cfg, db, logger)
+	proxyHandler := proxy.New(cfg, db, rdb, logger)
 
-	// errgroup so either server dying brings the whole process down —
-	// a proxy silently running without its API, or vice versa, is a
-	// worse failure mode than both going down together and getting
-	// restarted by whatever's supervising the process (systemd, Docker).
 	var g errgroup.Group
 
 	g.Go(func() error {
