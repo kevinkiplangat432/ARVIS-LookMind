@@ -14,6 +14,7 @@ type Config struct {
 	ProvidersPath string
 	Providers     []Provider
 	ModelRoutes   map[string]Provider
+	RedisAddr     string
 	MaxTokens     int
 }
 
@@ -38,11 +39,12 @@ func Load() (*Config, error) {
 		maxTokens = 4096
 	}
 
-	cfg := &Config{
+		cfg := &Config{
 		ProxyAddr:     getEnv("PROXY_ADDR", ":8080"),
 		APIAddr:       getEnv("API_ADDR", ":8081"),
 		DatabaseURL:   getEnv("DATABASE_URL", "postgres://arvis:arvis@localhost:5432/arvis?sslmode=disable"),
 		ProvidersPath: getEnv("PROVIDERS_FILE", "providers.yaml"),
+		RedisAddr:     getEnv("REDIS_ADDR", "localhost:6379"),
 		MaxTokens:     maxTokens,
 	}
 
