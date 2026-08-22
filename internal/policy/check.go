@@ -173,3 +173,15 @@ func CheckTopics(ctx context.Context, rdb *redis.Client, requestBody []byte) (*V
 	}
 	return MatchText(string(requestBody), blocked), nil
 }
+
+// GetUsage exposes the daily/monthly counters read-only — the CLI's
+// budget status view needs this, and there's no reason to keep it
+// private just because only internal code used it until now.
+func GetUsage(ctx context.Context, rdb *redis.Client, scope BudgetScope, id string) (daily, monthly int, err error) {
+	daily, err = getUsage(ctx, rdb, scope, id, "daily")
+	if err != nil {
+		return 0, 0, err
+	}
+	monthly, err = getUsage(ctx, rdb, scope, id, "monthly")
+	return daily, monthly, err
+}
