@@ -17,6 +17,7 @@ import (
 	"github.com/kevinkiplangat432/arvis/internal/detector"
 	"github.com/kevinkiplangat432/arvis/internal/policy"
 	"github.com/kevinkiplangat432/arvis/internal/store"
+	"github.com/kevinkiplangat432/arvis/internal/tokenize"
 )
 
 type Proxy struct {
@@ -42,6 +43,7 @@ func New(cfg *config.Config, db *pgxpool.Pool, rdb *redis.Client, logger *slog.L
 func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 	ctx := r.Context()
+	requestID := uuid.NewString() // generated up front now — tokenize needs it before forwarding, not just for logging afterward
 
 	identity, err := authenticate(ctx, p.db, r)
 	if err != nil {
@@ -61,37 +63,33 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Governance runs before anything touches the network. This is the
-	// actual line between Auditing (always records, never acts) and
-	// Governance (can say no) — a blocked request never reaches a
-	// provider, but it IS still logged, just as a 403 instead of a
-	// real response.
 	violation, err := policy.Check(ctx, p.rdb, identity.ID, provider.Name, requestBodyBytes)
 	if err != nil {
-		// Fail open on a Redis outage: taking down the whole proxy
-		// because its policy store briefly hiccuped is a worse outcome
-		// than one request going unchecked. Worth revisiting once
-		// Redis has real production HA behind it.
 		p.logger.Error("policy check failed, proceeding without enforcement", "error", err.Error())
 	}
 	if violation != nil {
-		p.logBlockedRequest(identity, provider, model, *violation, int(time.Since(start).Milliseconds()))
+		p.logBlockedRequest(requestID, identity, provider, model, *violation, int(time.Since(start).Milliseconds()))
 		p.writeError(w, http.StatusForbidden, fmt.Errorf("request blocked by policy: %s", violation.Detail))
 		return
 	}
 
 	syncFlags := p.detector.CheckSync(ctx, identity.ID, model)
 
-
-	if isStreaming(requestBodyBytes) {
-		blocked := policy_ListBlockedTopicsSafe(ctx, p.rdb, p.logger)
-		p.serveStreaming(w, r, identity, provider, model, requestBodyBytes, blocked, start)
-		_ = syncFlags // sync detector flags aren't wired into streamed responses yet — the pre-flight policy check already ran on the initiating prompt either way
+	// Tokenization fails CLOSED, deliberately the opposite of policy's
+	// fail-open Redis behavior above. A Redis outage during a policy
+	// check means one request goes unchecked — bad, but recoverable.
+	// A Redis outage during tokenization, if it failed open, would
+	// mean real customer PII goes to an external provider unmasked —
+	// exactly the thing this feature exists to prevent. Silence is
+	// not an acceptable failure mode here.
+	tokenizedBody, err := tokenize.Tokenize(ctx, p.rdb, requestID, requestBodyBytes)
+	if err != nil {
+		p.writeError(w, http.StatusServiceUnavailable, fmt.Errorf("tokenization unavailable, request rejected rather than sent unmasked: %w", err))
 		return
 	}
 
 	outboundURL := provider.BaseURL + r.URL.Path
-	outbound, err := http.NewRequestWithContext(ctx, r.Method, outboundURL, io.NopCloser(bytes.NewReader(requestBodyBytes)))
+	outbound, err := http.NewRequestWithContext(ctx, r.Method, outboundURL, io.NopCloser(bytes.NewReader(tokenizedBody)))
 	if err != nil {
 		p.writeError(w, http.StatusInternalServerError, fmt.Errorf("failed to build outbound request: %w", err))
 		return
@@ -112,34 +110,36 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Detokenize fails OPEN, on purpose, opposite of Tokenize above —
+	// the asymmetry is intentional. A failure here means the caller
+	// gets a response still containing tokens like [KENYAN_NATIONAL_ID_1]
+	// instead of the real value: degraded, but not a leak in either
+	// direction, so there's no safety reason to reject the request.
+	reconstructed, err := tokenize.Detokenize(ctx, p.rdb, requestID, respBody)
+	if err != nil {
+		p.logger.Error("detokenization failed, returning response with tokens intact", "error", err.Error())
+		reconstructed = respBody
+	}
+
 	for k, values := range resp.Header {
 		for _, v := range values {
 			w.Header().Add(k, v)
 		}
 	}
 	w.WriteHeader(resp.StatusCode)
-	w.Write(respBody)
+	w.Write(reconstructed)
 
 	latencyMs := int(time.Since(start).Milliseconds())
-	go p.logAndDetect(identity, provider, model, resp.StatusCode, latencyMs, requestBodyBytes, respBody, syncFlags)
+	go p.logAndDetect(requestID, identity, provider, model, resp.StatusCode, latencyMs, requestBodyBytes, reconstructed, syncFlags)
 }
 
-func policy_ListBlockedTopicsSafe(ctx context.Context, rdb *redis.Client, logger *slog.Logger) []string {
-	blocked, err := policy.ListBlockedTopics(ctx, rdb)
-	if err != nil {
-		logger.Error("failed to fetch blocked topics for streaming check", "error", err.Error())
-		return nil
-	}
-	return blocked
-}
-
-func (p *Proxy) logAndDetect(identity *store.Identity, provider config.Provider, model string, statusCode, latencyMs int, requestBody, responseBody []byte, syncFlags []detector.Flag) {
+func (p *Proxy) logAndDetect(requestID string, identity *store.Identity, provider config.Provider, model string, statusCode, latencyMs int, requestBody, responseBody []byte, syncFlags []detector.Flag) {
 	ctx := context.Background()
 	promptTokens, completionTokens := extractTokenUsage(responseBody)
 	totalTokens := promptTokens + completionTokens
 
 	req := store.Request{
-		ID:           uuid.NewString(),
+		ID:           requestID,
 		IdentityID:   &identity.ID,
 		Provider:     provider.Name,
 		Model:        model,
@@ -159,6 +159,10 @@ func (p *Proxy) logAndDetect(identity *store.Identity, provider config.Provider,
 		p.logger.Error("failed to record policy usage", "error", err.Error())
 	}
 
+	// requestBody/responseBody here are the real, reconstructed values
+	// (pre-tokenize / post-detokenize) — the detector's job is to flag
+	// what an employee actually typed and actually received, not the
+	// masked version that briefly existed only for the provider call.
 	p.detector.RunAsync(req.ID, syncFlags, detector.AsyncInput{
 		IdentityID:   identity.ID,
 		Provider:     provider.Name,
@@ -170,15 +174,11 @@ func (p *Proxy) logAndDetect(identity *store.Identity, provider config.Provider,
 	})
 }
 
-// logBlockedRequest records a policy-blocked call exactly the way a
-// forwarded one is recorded — a 403 in the requests table, plus a
-// governance-category anomaly attached to it. A blocked request
-// belongs in the audit trail every bit as much as an allowed one.
-func (p *Proxy) logBlockedRequest(identity *store.Identity, provider config.Provider, model string, violation policy.Violation, latencyMs int) {
+func (p *Proxy) logBlockedRequest(requestID string, identity *store.Identity, provider config.Provider, model string, violation policy.Violation, latencyMs int) {
 	ctx := context.Background()
 
 	req := store.Request{
-		ID:         uuid.NewString(),
+		ID:         requestID,
 		IdentityID: &identity.ID,
 		Provider:   provider.Name,
 		Model:      model,
