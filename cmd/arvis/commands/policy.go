@@ -130,7 +130,40 @@ var policyShowCmd = &cobra.Command{
 		return nil
 	},
 }
+var policyBudgetsCmd = &cobra.Command{
+	Use:   "budgets",
+	Short: "Show all configured budgets and current usage against them",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		rdb, err := policy.Connect(cfg.RedisAddr)
+		if err != nil {
+			return err
+		}
+		defer rdb.Close()
 
+		statuses, err := policy.ListBudgetStatuses(context.Background(), rdb)
+		if err != nil {
+			return fmt.Errorf("failed to list budget statuses: %w", err)
+		}
+		if len(statuses) == 0 {
+			fmt.Println("No budgets configured.")
+			return nil
+		}
+
+		for _, s := range statuses {
+			label := string(s.Scope)
+			if s.ID != "" {
+				label += ":" + s.ID
+			}
+			enabled := "disabled"
+			if s.Budget.Enabled {
+				enabled = "enabled"
+			}
+			fmt.Printf("%-30s [%s]  daily: %d/%d   monthly: %d/%d\n",
+				label, enabled, s.DailyUsed, s.Budget.DailyLimit, s.MonthlyUsed, s.Budget.MonthlyLimit)
+		}
+		return nil
+	},
+}
 func init() {
 	policySetBudgetCmd.Flags().StringVar(&budgetScope, "scope", "", "identity, provider, or global (required)")
 	policySetBudgetCmd.Flags().StringVar(&budgetID, "id", "", "identity or provider name (required unless scope=global)")
@@ -138,6 +171,8 @@ func init() {
 	policySetBudgetCmd.Flags().IntVar(&budgetMonthly, "monthly", 0, "monthly token limit")
 	policySetBudgetCmd.Flags().BoolVar(&budgetEnabled, "enabled", true, "whether this budget is enforced")
 
-	policyCmd.AddCommand(policySetBudgetCmd, policyBlockTopicCmd, policyUnblockTopicCmd, policyListTopicsCmd, policyShowCmd)
+	
+	policyCmd.AddCommand(policySetBudgetCmd, policyBlockTopicCmd, policyUnblockTopicCmd, policyListTopicsCmd, policyShowCmd, policyBudgetsCmd)
 	rootCmd.AddCommand(policyCmd)
+
 }

@@ -12,6 +12,23 @@ Never run go run cmd/arvis/main.go — use the compiled binary or:
   go run ./cmd/arvis/
 
 
+ENVIRONMENT VARIABLES
+----------------------
+DATABASE_URL     — postgres connection string (default: local arvis db)
+REDIS_ADDR       — redis address for the policy engine (default: localhost:6379)
+PROVIDERS_FILE   — path to providers.yaml (default: providers.yaml)
+PROXY_ADDR       — proxy listen address (default: :8080)
+API_ADDR         — API listen address (default: :8081)
+MAX_TOKENS       — default token cap fallback (default: 4096)
+
+server will refuse to start without a resolvable providers.yaml and a
+reachable Postgres — it now fails loudly on both rather than starting
+half-configured. Redis being unreachable does NOT stop the server —
+policy enforcement fails open and logs the error instead. See
+internal/proxy/proxy.go's Redis error handling if that behavior ever
+needs revisiting.
+
+
 CLI COMMANDS
 ------------
 Interactive mode (no arguments):
@@ -20,15 +37,47 @@ Interactive mode (no arguments):
 
 This shows a menu — enter 1, 2, or 3 to select a mode.
 
-Subcommands (scriptable, CI-friendly):
+Core subcommands:
 
-  ./arvis server          — start proxy on :8080 and API on :8081
-  ./arvis test            — run full test suite against arvis_test database
-  ./arvis migrate         — run migrations up (default)
-  ./arvis migrate up      — run migrations up explicitly
-  ./arvis migrate down    — roll back all migrations
-  ./arvis --help          — show all commands
-  ./arvis server --help   — help for individual command
+  ./arvis server               — start proxy on :8080 and API on :8081
+  ./arvis test                 — go vet + go test -race -cover -count=1, all packages
+  ./arvis migrate               — run migrations up (default)
+  ./arvis migrate up            — run migrations up explicitly
+  ./arvis migrate down          — roll back all migrations
+  ./arvis migrate status        — show current migration version and dirty state
+  ./arvis migrate force [ver]   — force the migration version (dirty-state recovery)
+  ./arvis migrate --path <dir>  — use a migrations directory other than ./migrations
+  ./arvis --help                — show all commands
+  ./arvis server --help         — help for individual command
+
+Identity:
+
+  ./arvis identity create "[name]"   — issue a new identity + one-time key
+
+Governance (policy engine):
+
+  ./arvis policy set-budget --scope identity --id <id> --daily <n> --monthly <n> --enabled
+  ./arvis policy set-budget --scope provider --id openai --daily <n>
+  ./arvis policy set-budget --scope global --daily <n>
+  ./arvis policy block-topic [key]      — see list-topics for valid keys
+  ./arvis policy unblock-topic [key]
+  ./arvis policy list-topics            — show all blockable topic categories + sources
+  ./arvis policy show                   — show currently blocked topics
+  ./arvis policy budgets                — show every configured budget + current usage
+
+Observability:
+
+  ./arvis requests list [--identity <id>] [--limit N]
+  ./arvis anomalies list [--category X] [--severity X] [--status X] [--limit N]
+  ./arvis anomalies resolve [id] --status reviewed|dismissed
+
+Audit export:
+
+  ./arvis audit export [--identity <id>] [--from YYYY-MM-DD] [--to YYYY-MM-DD] [--out path.pdf]
+      no --identity  → org-wide report
+      no --from      → defaults to 30 days before --to
+      no --to        → defaults to today
+      no --out       → arvis-audit-<timestamp>.pdf in the current directory
 
 
 SETUP (run once, or after adding new migrations)
@@ -37,11 +86,21 @@ If arvis_test does not exist yet, create it first:
 
   sudo -u postgres psql -c "CREATE DATABASE arvis_test OWNER arvis;"
 
-Apply migrations to the test database:
+Apply migrations to the test database (now five migrations —
+requests, anomalies, identities, requests alterations, anomalies
+alterations):
 
   DATABASE_URL="postgres://arvis:arvis@localhost:5432/arvis_test?sslmode=disable" ./arvis migrate up
 
 After adding new migration files, run the same command to apply them.
+
+Redis needs to be running locally for anything touching the policy
+package (budgets, blocked topics, the kill switch's topic lookup).
+There's no separate "test" Redis instance the way there's a separate
+arvis_test database yet — worth adding real isolation (a dedicated
+Redis DB index, or flushing test keys between runs) before policy
+tests are actually written, so they can't leave state behind that
+affects a later run.
 
 
 RUNNING TESTS
@@ -52,8 +111,8 @@ Using the binary (recommended):
 
 Using make:
 
-  make test            — all tests
-  make test-unit       — unit tests only, no database required
+  make test             — all tests
+  make test-unit        — unit tests only, no database required
   make test-integration — integration tests only, requires arvis_test
 
 Using go test directly:
@@ -70,17 +129,36 @@ internal/detector/rules_test.go   — anomaly detection rules, boundary values, 
 internal/store/requests_test.go   — request insert, duplicate ID rejection, ordering, limit, empty slice
 internal/store/anomalies_test.go  — anomaly insert, foreign key enforcement, ordering, empty slice
 
+NOT YET COVERED — real gaps, not oversights to ignore:
+
+internal/policy/*        — budget checks, usage counters, topic matching (MatchText
+                            especially deserves boundary tests around the chunk-split
+                            limitation flagged in streaming.go)
+internal/proxy/*         — auth, routing, streaming relay, kill switch termination
+internal/audit/*         — BuildReport correctness, PDF generation
+internal/store/identities.go — key hash lookup, ID lookup
+internal/config/providers.go — env var interpolation, duplicate detection, 20-provider cap
+
+This list is exactly the Phase 2 review guide's feature list, in the
+same order — each untested feature there is an untested package here.
+Worth writing tests as each one gets reviewed, not saving them all
+for one pass at the end.
+
 
 DATABASES
 ---------
 arvis       — development database, never touched by tests
 arvis_test  — test database, wiped and rewritten by test suite
 
+REDIS (dev) — localhost:6379, used by the live server and CLI
+REDIS (test) — not yet isolated from dev Redis; see SETUP note above
+
 
 ALWAYS RUN FROM REPO ROOT
 --------------------------
 All commands assume you are in ~/Documents/development/ARVIS.
-The binary reads migrations/ relative to the working directory.
-Running from any other directory will cause migration path errors.
-
-
+The binary reads migrations/ and providers.yaml relative to the
+working directory by default. Running from any other directory will
+cause migration or provider-loading errors — use migrate's --path
+flag to override the migrations location if you genuinely need to
+run from elsewhere.

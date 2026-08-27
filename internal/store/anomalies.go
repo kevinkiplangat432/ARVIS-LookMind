@@ -46,3 +46,45 @@ func ListAnomalies(ctx context.Context, db *pgxpool.Pool, limit int) ([]Anomaly,
 	}
 	return out, nil
 }
+
+// UpdateAnomalyStatus is the only mutation this package allows on the
+// anomalies table — and it only ever touches status. rule, detail,
+// category, severity, and created_at stay untouched forever, since
+// those are the actual audit record. "Reviewed" or "dismissed" is a
+// human's judgment about the record, not a correction to it.
+func UpdateAnomalyStatus(ctx context.Context, db *pgxpool.Pool, id, status string) error {
+	_, err := db.Exec(ctx, `UPDATE anomalies SET status = $1 WHERE id = $2`, status, id)
+	return err
+}
+
+type AnomalyFilter struct {
+	Category string
+	Severity string
+	Status   string
+}
+
+func ListAnomaliesFiltered(ctx context.Context, db *pgxpool.Pool, f AnomalyFilter, limit int) ([]Anomaly, error) {
+	rows, err := db.Query(ctx,
+		`SELECT id, request_id, rule, detail, category, severity, status, created_at
+		 FROM anomalies
+		 WHERE ($1 = '' OR category = $1)
+		   AND ($2 = '' OR severity = $2)
+		   AND ($3 = '' OR status = $3)
+		 ORDER BY created_at DESC LIMIT $4`,
+		f.Category, f.Severity, f.Status, limit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := make([]Anomaly, 0)
+	for rows.Next() {
+		var a Anomaly
+		if err := rows.Scan(&a.ID, &a.RequestID, &a.Rule, &a.Detail, &a.Category, &a.Severity, &a.Status, &a.CreatedAt); err != nil {
+			return nil, err
+		}
+		out = append(out, a)
+	}
+	return out, nil
+}
