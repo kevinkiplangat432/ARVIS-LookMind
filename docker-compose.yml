@@ -29,7 +29,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    command: ["sh", "-c", "./arvis migrate up && ./arvis server"]
+    entrypoint: ["sh", "-c"]
+    command: ["./arvis migrate up && ./arvis server"]
     ports:
       - "8080:8080"
       - "8081:8081"
