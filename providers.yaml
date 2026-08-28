@@ -1,16 +1,15 @@
 providers:
-  - name: openai
-    base_url: https://api.openai.com
-    api_key: ${OPENAI_API_KEY}
+  - name: groq
+    base_url: https://api.groq.com/openai
+    api_key: ${GROQ_API_KEY}
     models:
-      - gpt-4
-      - gpt-4-turbo
-      - gpt-3.5-turbo
+      - llama-3.1-8b-instant
+      - llama-3.3-70b-versatile
+      - mixtral-8x7b-32768
 
-  - name: anthropic
-    base_url: https://api.anthropic.com
-    api_key: ${ANTHROPIC_API_KEY}
+  - name: openrouter
+    base_url: https://openrouter.ai/api
+    api_key: ${OPENROUTER_API_KEY}
     models:
-      - claude-3-opus
-      - claude-3-sonnet
-      - claude-3-haiku
+      - meta-llama/llama-3.1-8b-instruct:free
+      - mistralai/mistral-7b-instruct:free
