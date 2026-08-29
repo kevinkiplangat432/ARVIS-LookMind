@@ -8,7 +8,7 @@ services:
     volumes:
       - arvis_pgdata:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"        # bind to localhost only (security)
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U arvis -d arvis"]
       interval: 5s
@@ -18,7 +18,7 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"        # bind to localhost only
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -29,7 +29,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    command: ["sh", "-c", "./arvis migrate up && ./arvis server"]
+    # entrypoint and command are now defined in the Dockerfile – no override needed
     ports:
       - "8080:8080"
       - "8081:8081"
