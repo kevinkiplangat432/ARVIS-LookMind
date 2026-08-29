@@ -1,5 +1,6 @@
 
-<!--markdownlint-disable--># Docker Command Reference (for your ARVIS workflow)
+<!--markdownlint-disable-->
+# Docker Command Reference (for ARVIS workflow)
 
 ## Building images
 
@@ -9,7 +10,7 @@ Builds the image(s) defined in `docker-compose.yml` without starting any contain
 
 ### `docker compose up --build`
 Combines build + start. Rebuilds any image whose build context changed, then creates and starts all containers.
-**Run when:** you've changed your own source code (like your `router.go` fix earlier). Docker caches layers, so if only your Go files changed, it skips re-downloading `go mod`, and just reruns `COPY . .` and `go build` — usually fast.
+**Run when:** you've changed your own source code. Docker caches layers, so if only your Go files changed, it skips re-downloading `go mod`, and just reruns `COPY . .` and `go build` — usually fast.
 **Common mistake:** forgetting `--build` after a code change (you hit this earlier) — Compose happily reuses the stale image and you keep chasing a bug you already fixed.
 
 ### `docker compose build --no-cache`
