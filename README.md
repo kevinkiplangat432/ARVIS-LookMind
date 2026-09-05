@@ -5,7 +5,7 @@
 
 # Automated Runtime Visibility & Intelligence System(ARVIS)
 
-**Version 0.9.0 · Active Development · Compliance target: Kenya Data Protection Act 2019**
+**Version 0.11.0 · Active Development · Compliance target: Kenya Data Protection Act 2019**
 
 Building infrastructure that lets African financial institutions use AI without giving up visibility, control, or the ability to prove any of it happened.
 
