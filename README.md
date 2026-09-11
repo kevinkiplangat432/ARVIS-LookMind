@@ -1,76 +1,524 @@
 <!--markdownlint-disable-->
+
 <p align="center">
   <img src="LookMind.png" alt="LookMind" width="300" />
 </p>
 
-# Automated Runtime Visibility & Intelligence System(ARVIS)
+# Automated Runtime Visibility & Intelligence System (ARVIS)
 
-**Version 0.11.0 · Active Development · Compliance target: Kenya Data Protection Act 2019**
+**Version 0.12.0 · Active Development · Compliance target: Kenya Data Protection Act 2019**
 
-Building infrastructure that lets African financial institutions use AI without giving up visibility, control, or the ability to prove any of it happened.
+**Policy enforcement infrastructure for enterprise AI.**
+
+ARVIS sits between an organization and the AI systems it uses, giving the organization a deterministic way to define what AI is allowed to do, protect sensitive information before it leaves the organization's environment, control what comes back, and produce evidence of every decision.
 
 ---
 
-## The Questions Behind This
+## The Problem
 
-Before there was a proxy, a schema, or a line of Go, there were questions that don't have good answers at most organizations right now:
+Organizations are adopting AI faster than they are able to govern it.
 
-Which employees are sending customer data to a public AI model, and has it happened before? If a regulator asked for proof of compliant AI usage tomorrow, could that proof be produced in an hour, or would it take three weeks? If someone gets fired today, is their access to every AI tool they used actually gone, or just gone from the systems anyone remembered? When something does go wrong, is the first move an honest, evidence-backed answer, or a scramble to reconstruct what even happened?
+Employees are sending customer information, financial records, internal documents, and other sensitive data to external AI providers. Organizations often cannot answer basic questions with certainty:
 
-ARVIS exists because, for almost every organization adopting AI right now, the honest answer to those questions is "we don't fully know." That's the problem. Everything below is the answer.
+* What data was sent to an AI provider?
+* Which users or applications sent it?
+* Which AI systems received it?
+* Was the request permitted?
+* What policy was supposed to govern it?
+* Was sensitive information exposed?
+* What happened to the response?
+* Can the organization prove what happened to a regulator?
+* Can the same controls be applied when the organization changes AI providers?
+
+The problem is not simply that organizations lack visibility.
+
+**The deeper problem is that AI usage needs rules, but those rules are rarely connected directly to the infrastructure carrying AI traffic.**
+
+A company may have a privacy policy saying:
+
+> Customer identification data must not be sent to external AI providers.
+
+But a written policy sitting in a document does not stop an HTTP request.
+
+There is a gap between:
+
+**what an organization says its AI systems must do**
+
+and
+
+**what its infrastructure actually permits them to do.**
+
+ARVIS is built to close that gap.
+
+---
 
 ## What ARVIS Does
 
-ARVIS sits between an organization and the AI providers it already uses. Existing tools point at ARVIS instead of pointing directly at a provider, and from that moment, every request is seen, recorded, and checked before it goes anywhere. No SDK to install. No workflow to relearn. The visibility exists at the infrastructure level, not because every team agreed to adopt a new tool.
+ARVIS is an **AI gateway and policy enforcement layer**.
 
-## Governance, Auditing, and Compliance, Defined Precisely
+Applications and AI-enabled systems route their AI traffic through ARVIS instead of connecting directly to external AI providers.
 
-These three words get used loosely elsewhere. Here, they mean three specific, separable things, sitting on one shared foundation.
+ARVIS evaluates each request against policies defined by the organization before the request is allowed to continue.
 
-**Observability** is the foundation underneath all three, the raw ability to see AI traffic at all, in real time. Nothing above it functions without it.
+Those policies can determine whether ARVIS should:
 
-**Governance** is control before the fact, the rules of engagement decided in advance: what's allowed, what's blocked, what stops a request mid-flight. This is ARVIS acting, to prevent a problem, not react to one.
+* allow a request
+* deny a request
+* require human approval
+* redact information
+* tokenize sensitive information
+* transform a request
+* restrict a destination
+* inspect or control a response
+* reconstruct authorized information locally
+* record the decision for audit
 
-**Auditing** is the record kept after the fact, without exception. Every request, every flag, written once and never altered. This is ARVIS remembering, so nothing has to be reconstructed from memory when it matters most.
+The organization defines the policy.
 
-**Compliance** is governance and auditing pointed at a specific legal standard and demonstrated against it. This is ARVIS proving it, in a form a regulator can actually hold.
+ARVIS executes it.
 
-## Built to Run Inside Your Own Walls
+---
 
-ARVIS is a single binary and a local database, with nothing built in that depends on an external service to function. For an institution that cannot legally place audit data anywhere outside its own control, that isn't a configuration option, it's the difference between a tool that's usable and one that isn't. Where most platforms in this space treat on-premises deployment as a retrofit onto a cloud-first product, it's the native shape of this one.
+## From Human Policy to Runtime Enforcement
 
-## Where the Intelligence Is Headed
+The central idea behind ARVIS is simple:
 
-ARVIS today watches individual requests. The research direction underneath it, developed in a companion project, is building toward something that watches *relationships between* requests, which matters increasingly as AI stops being one prompt and one answer, and starts being agents calling other agents, tools, and data sources on their own.
+> **A human should define the rule. A deterministic system should enforce the rule.**
 
-Three ideas, being developed together, not separately:
+Organizations should not have to train an AI model to understand their compliance requirements.
 
-**Seeing the shape of activity, not just isolated events.** Instead of judging each request alone, the system is being taught to represent an organization's AI activity as a web of relationships, who called what, what happened next. Real risk often only shows up in that shape, a chain of individually unremarkable actions that add up to something worth stopping, never visible in any single event on its own.
+Instead, ARVIS provides a structured policy language that allows human-readable requirements to be converted into machine-executable rules.
 
-**Knowing what it doesn't know.** Any model can produce a confident-sounding score on something it has never actually seen before. That's dangerous in a compliance tool specifically, a confidently wrong "this is fine" is worse than an honest "this needs a person to look." So the system is being built to express genuine uncertainty alongside every judgment, not just a risk number, but a sense of how much that number should be trusted. High confidence, act. Low confidence, hand it to a human instead of guessing.
+For example:
 
-**Learning where attention matters most.** As activity scales, nothing can be scrutinized with equal depth in real time. This piece decides where the system's limited attention goes next, informed by what's uncertain and what's changed. By design, this piece decides only *where to look*, never *what to do about it*. That boundary is architectural, not a policy that could quietly loosen later, the part of the system that can act stays permanently separate from the part that decides what deserves a closer look.
+> **Customer identification data must not be transmitted to external AI providers. It may be replaced with internal tokens before transmission.**
 
-Full detail on this research lives in its own repository: [Adaptive Multi-Agent Reinforcement Learning](https://github.com/kevinkiplangat432/Adaptive-Multi-Agent-Reinforcement-learning).
+can become a formal policy:
 
-## Why This, Why Here
+```text
+IF
+    data.category = CUSTOMER_IDENTIFIER
 
-Every established AI governance platform available today was built for a different regulatory world, the EU AI Act, US-centric frameworks, generic global compliance retrofitted onto a cloud product. None were built around the Kenya Data Protection Act 2019, or the operating reality of Kenyan financial institutions. This one is.
+AND
+    destination.type = EXTERNAL_AI
 
-That's narrow on purpose. The goal isn't to compete on breadth against global platforms from day one, it's to become the proven, trusted answer inside this specific regulatory environment first, and grow outward from that credibility rather than from promised scope.
+THEN
+    TOKENIZE
+```
+
+Another organization may define:
+
+```text
+IF
+    data.category = CONFIDENTIAL
+
+AND
+    destination.type = EXTERNAL_AI
+
+THEN
+    DENY
+```
+
+The policy changes.
+
+The enforcement engine does not.
+
+This separation allows organizations to adapt ARVIS to their own internal policies, industries, and regulatory environments without changing the underlying runtime.
+
+---
+
+## Policy, Protection, Enforcement
+
+ARVIS separates three responsibilities.
+
+### Policy
+
+**What is allowed?**
+
+Organizations define the rules governing their AI systems.
+
+Examples:
+
+* Which data may leave the organization?
+* Which AI providers may be used?
+* Which users may access particular models?
+* Which AI actions require human approval?
+* Which information must be removed or transformed?
+* Which requests must be blocked?
+
+### Protection
+
+**What information is allowed to leave?**
+
+When policy permits a request to continue, ARVIS can transform the data before it reaches an external AI provider.
+
+For example:
+
+```text
+Internal Request
+
+"Analyze Jane Wanjiku's account
+123456789 and transaction history."
+
+                ↓
+
+ARVIS
+
+"Analyze CUSTOMER_001's account
+ACCOUNT_001 and transaction history."
+
+                ↓
+
+External AI Provider
+```
+
+The organization retains the mapping locally.
+
+The external provider receives only what the policy permits.
+
+### Enforcement
+
+**What happens when a rule is violated?**
+
+ARVIS evaluates the request against the active policy set and applies the configured effect.
+
+```text
+ALLOW
+DENY
+REDACT
+TOKENIZE
+REQUIRE_APPROVAL
+ESCALATE
+LOG
+```
+
+The same principle applies to responses returning from external AI systems.
+
+ARVIS can inspect the response, apply the relevant policies, reconstruct authorized information locally, redact prohibited information, or prevent the response from reaching the requesting application.
+
+---
+
+## The Runtime Flow
+
+A typical request passes through ARVIS like this:
+
+```text
+                    APPLICATION
+                         │
+                         ▼
+                  ┌─────────────┐
+                  │    ARVIS    │
+                  │ AI GATEWAY  │
+                  └──────┬──────┘
+                         │
+                         ▼
+                  POLICY EVALUATION
+                         │
+              ┌──────────┼──────────┐
+              │          │          │
+            ALLOW      TRANSFORM    DENY
+              │          │
+              │          ▼
+              │     TOKENIZE /
+              │      REDACT
+              │          │
+              └────┬─────┘
+                   │
+                   ▼
+              EXTERNAL AI
+                   │
+                   ▼
+                RESPONSE
+                   │
+                   ▼
+             ARVIS EVALUATION
+                   │
+          ┌────────┼─────────┐
+          │        │         │
+        ALLOW   RECONSTRUCT  BLOCK
+          │        │
+          └────┬───┘
+               │
+               ▼
+           APPLICATION
+```
+
+The external AI provider does not need to understand the organization's internal policies.
+
+ARVIS enforces those policies at the infrastructure boundary.
+
+---
+
+## Deterministic by Design
+
+ARVIS does not need an AI model to decide whether a formally defined policy has been violated.
+
+A policy such as:
+
+```text
+IF loan.amount > 500000
+AND manager.approved = false
+THEN REQUIRE_APPROVAL
+```
+
+has a deterministic meaning.
+
+Given the same runtime context and the same active policy version, ARVIS produces the same result.
+
+This is important for compliance.
+
+A compliance decision should be explainable in terms of:
+
+* the policy that was active
+* the conditions evaluated
+* the values observed
+* the resulting action
+* the policy version
+* the time of the decision
+
+rather than an opaque model score.
+
+---
+
+## Auditing and Evidence
+
+Every policy decision can produce an auditable record.
+
+Instead of an organization having to reconstruct an incident from application logs, ARVIS can preserve the relevant runtime evidence:
+
+```text
+Request ID
+User / Application
+AI Provider
+Policy Version
+Observed Conditions
+Action Taken
+Transformation Applied
+Decision
+Timestamp
+```
+
+For example:
+
+```text
+REQUEST BLOCKED
+
+Policy:
+External Customer Data Transfer
+
+Version:
+3.2
+
+Condition:
+data.category = CUSTOMER_IDENTIFIER
+
+Observed:
+CUSTOMER_IDENTIFIER
+
+Condition:
+destination.type = EXTERNAL_AI
+
+Observed:
+EXTERNAL_AI
+
+Effect:
+DENY
+```
+
+The result is not simply a log saying that something went wrong.
+
+It provides the policy context behind the decision.
+
+---
+
+## Built for Data to Stay Inside the Organization
+
+ARVIS is designed for environments where sensitive data and audit records need to remain under organizational control.
+
+The core system is designed to operate as a self-contained deployment:
+
+* single Go binary
+* local policy evaluation
+* local data transformation
+* local audit storage
+* no mandatory external control plane
+* no SDK required for applications
+* designed for on-premise enterprise environments
+
+The objective is simple:
+
+> **The organization should not have to surrender control of its governance infrastructure in order to use external AI.**
+
+---
+
+## No SDK Required
+
+ARVIS operates at the infrastructure layer rather than requiring every application team to integrate a new AI governance SDK.
+
+Instead of:
+
+```text
+Application
+    ↓
+AI Provider
+```
+
+the organization can establish:
+
+```text
+Application
+    ↓
+ARVIS
+    ↓
+AI Provider
+```
+
+Existing AI traffic can therefore become subject to centralized policy without requiring every developer or employee to learn an entirely new workflow.
+
+---
+
+## Designed for Changing Regulatory Environments
+
+The underlying ARVIS engine should not need to change every time a regulatory environment changes.
+
+The policy changes.
+
+The engine remains.
+
+```text
+                 ARVIS POLICY ENGINE
+                         │
+          ┌──────────────┼──────────────┐
+          │              │              │
+        Kenya       South Africa      Nigeria
+        Policies      Policies        Policies
+          │              │              │
+          └──────────────┼──────────────┘
+                         │
+                   SAME RUNTIME
+```
+
+This allows the same infrastructure to enforce:
+
+* regulatory requirements
+* organizational AI policies
+* privacy requirements
+* security requirements
+* data-handling requirements
+* human-approval requirements
+
+without embedding the laws of a particular country directly into the runtime engine.
+
+The initial compliance focus is Kenya. The architecture is designed so that policy packs and organizational rules can evolve independently of the enforcement engine.
+
+---
+
+## Governance, Auditing, and Compliance
+
+These concepts are deliberately separated.
+
+**Governance** defines the rules.
+
+What is AI allowed to do?
+
+**Enforcement** applies those rules at runtime.
+
+What happens when the rules are triggered?
+
+**Protection** controls sensitive information.
+
+What data is allowed to leave the organization's boundary?
+
+**Auditing** records what happened.
+
+What policy was active, what decision was made, and what evidence exists?
+
+**Compliance** connects those controls and records to a specific legal or regulatory requirement.
+
+Together, they create a complete control loop:
+
+```text
+DEFINE
+  ↓
+POLICY
+  ↓
+ENFORCE
+  ↓
+PROTECT
+  ↓
+AUDIT
+  ↓
+PROVE
+```
+
+---
+
+## Why ARVIS
+
+AI adoption is creating a new infrastructure problem.
+
+Organizations cannot simply tell employees:
+
+> "Do not send sensitive information to AI."
+
+They need infrastructure capable of enforcing that requirement.
+
+They cannot simply write:
+
+> "AI usage must comply with our data protection policy."
+
+They need a mechanism that translates that policy into something the runtime can actually evaluate.
+
+And they cannot simply claim:
+
+> "We use AI responsibly."
+
+They need evidence.
+
+ARVIS is being built around that gap:
+
+> **Turn human-defined AI policies into enforceable runtime controls, protect data as AI traffic crosses organizational boundaries, and preserve the evidence needed to prove what happened.**
+
+---
 
 ## Status
 
-0.8.0 reflects what's real and working today, not what's promised. The next milestone is 0.90.0. Release, 1.0.0, comes when the full system works end to end, not on a calendar date chosen in advance.
+**Version 0.12.0 · Active Development**
+
+ARVIS is currently focused on establishing the core policy, gateway, data protection, and audit infrastructure.
+
+The system is being developed toward a complete end-to-end runtime in which:
+
+```text
+Human Policy
+      ↓
+Structured Policy
+      ↓
+Policy Validation
+      ↓
+Deterministic Rule
+      ↓
+Runtime Evaluation
+      ↓
+Request / Response Enforcement
+      ↓
+Audit Evidence
+```
+
+The first target environment is Kenyan enterprise and financial infrastructure, with the architecture designed to support additional regulatory and organizational policy environments over time.
+
+---
 
 ## Further Reading
 
-| Resource | Purpose |
-|---|---|
-| [`docs/HISTORY.md`](docs/HISTORY.md) | Origin story, why this exists and how it evolved |
-| [`docs/vision.md`](docs/vision.md) | The long-term vision for what ARVIS is being built toward |
-| [`DOCUMENTATION.md`](DOCUMENTATION.md) | Full technical reference |
-| [Adaptive Multi-Agent RL](https://github.com/kevinkiplangat432/Adaptive-Multi-Agent-Reinforcement-learning) | The GNN, Bayesian uncertainty, and reinforcement learning research behind ARVIS's future intelligence layer |
+| Resource                               | Purpose                                     |
+| -------------------------------------- | ------------------------------------------- |
+| [`docs/HISTORY.md`](docs/HISTORY.md)   | Origin story and evolution of ARVIS         |
+| [`docs/vision.md`](docs/vision.md)     | Long-term product and infrastructure vision |
+| [`DOCUMENTATION.md`](DOCUMENTATION.md) | Technical reference                         |
+| [`LICENSE`](LICENSE)                   | Proprietary license                         |
+
+---
 
 ## License
 
@@ -78,9 +526,10 @@ This project is proprietary and confidential. All rights reserved. No part of th
 
 See [`LICENSE`](LICENSE) for the full text.
 
+---
+
 ## Contact
 
-Kevin — <kiplangatkevin335@gmail.com>
+Kevin — [kiplangatkevin335@gmail.com](mailto:kiplangatkevin335@gmail.com)
 
-Building infrastructure that lets African financial institutions use AI without giving up visibility, control, or the ability to prove any of it happened.
-
+**Building infrastructure that lets African organizations use AI without giving up visibility, control, or the ability to prove what happened.**
