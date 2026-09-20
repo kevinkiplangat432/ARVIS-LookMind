@@ -20,6 +20,7 @@ type providersFile struct {
 	Providers []Provider `yaml:"providers"`
 }
 
+
 var envVarPattern = regexp.MustCompile(`\$\{([A-Z0-9_]+)\}`)
 
 // LoadProviders reads and parses a providers YAML file, resolving any

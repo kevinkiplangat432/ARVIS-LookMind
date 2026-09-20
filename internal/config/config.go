@@ -12,8 +12,8 @@ type Config struct {
 	APIAddr       string
 	DatabaseURL   string
 	ProvidersPath string
-	Providers     []Provider
-	ModelRoutes   map[string]Provider
+	Providers     []Provider // slice
+	ModelRoutes   map[string]Provider //a map
 	RedisAddr     string
 	MaxTokens     int
 }
@@ -26,9 +26,9 @@ func getEnv(key, fallback string) string {
 }
 
 // Load reads environment variables into a Config exactly once. It does
-// not decide what's "required" — that's each command's job, since
+// not decide what's "required", that's each command's job, since
 // migrate and test don't need everything server does. Notably, it does
-// NOT load providers.yaml — that's ResolveProviders, called explicitly
+// NOT load providers.yaml, that's ResolveProviders, called explicitly
 // only by commands that actually route traffic.
 func Load() (*Config, error) {
 	maxTokensStr := getEnv("MAX_TOKENS", "4096")
