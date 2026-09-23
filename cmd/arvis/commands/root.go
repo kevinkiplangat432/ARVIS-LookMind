@@ -1,7 +1,7 @@
 package commands
 
 import (
-	"bufio"
+	"bufio" // Buffered input reader for cli input
 	"fmt"
 	"os"
 	"strings"
@@ -23,9 +23,11 @@ Automated Runtime Visibility & Intelligence System
 Version 0.7.0
 `
 
-// cfg holds the global application configurations
+// cfg holds the global application configurations loaded during startup
 var cfg *config.Config
 
+//rootcmd is the top-level command for the ARVIS CLI.
+// Running 'arvis' without a sub command opens the interactive menu.
 var rootCmd = &cobra.Command{
 	Use: "arvis",
 	Short: "ARVIS - AI infrastructure monitoring proxy",
@@ -59,7 +61,9 @@ var rootCmd = &cobra.Command{
 
 
 func Execute() {
-	_ = godotenv.Load()
+	// load local environments variables from .env when available
+	// the file is optional because production environment may provide configuration directly through the process environment
+	_ = godotenv.Load() 
 
 	loaded, err := config.Load()
 	if err != nil {
