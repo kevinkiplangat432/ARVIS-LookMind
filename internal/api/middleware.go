@@ -23,7 +23,7 @@ func withLogging(logger *slog.Logger) func(http.Handler) http.Handler {
 		})
 	}
 }
-// testing internet connection
+
 type statusRecorder struct {
 	http.ResponseWriter
 	code int
