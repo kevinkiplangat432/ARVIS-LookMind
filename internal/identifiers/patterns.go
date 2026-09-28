@@ -22,9 +22,10 @@ type Identifier struct {
 
 var Catalog = []Identifier{
 	{
-		Key: "kenyan_national_id", Name: "Kenyan National ID number",
-		Pattern:     regexp.MustCompile(`\b\d{7,8}\b`),
-		ContextCues: []string{"id no", "id number", "national id", "id:", "identification"},
+    Key:         "kenyan_national_id", 
+    Name:        "Kenyan National ID number",
+    Pattern:     regexp.MustCompile(`\b\d{7,9}\b`),
+    ContextCues: []string{"id no", "id number", "national id", "id:", "identification", "maisha", "maisha namba"},
 	},
 	{
 		Key:     "kra_pin",
