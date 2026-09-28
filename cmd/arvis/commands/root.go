@@ -2,13 +2,14 @@ package commands
 
 import (
 	"bufio" // Buffered input reader for cli input
-	"fmt"
-	"os"
-	"strings"
+	"fmt" // Interfacing with the IO 
+	"os" // Interacting with the operating system
+	"strings" // Manipulating text
 
-	"github.com/joho/godotenv"
-	"github.com/kevinkiplangat432/arvis/internal/config"
-	"github.com/spf13/cobra"
+	// Third-party packages
+	"github.com/joho/godotenv" // A go port of the ruby dotenv library
+	"github.com/kevinkiplangat432/arvis/internal/config" // Custom config file
+	"github.com/spf13/cobra" // A simple interface to create powerful modern CLI interfaces
 )
 
 const banner = `
