@@ -28,19 +28,22 @@ var Catalog = []Identifier{
     ContextCues: []string{"id no", "id number", "national id", "id:", "identification", "maisha", "maisha namba"},
 	},
 	{
-		Key:     "kra_pin",
-		Name:    "KRA PIN",
-		Pattern: regexp.MustCompile(`\b[A-Za-z]\d{9}[A-Za-z]\b`),
+    Key:         "kra_pin", 
+    Name:        "Kenyan KRA PIN",
+    Pattern:     regexp.MustCompile(`(?i)\b[AP]\d{9}[A-Z]\b`),
+    ContextCues: []string{"kra", "kra pin", "tax pin", "itax", "pin no", "pin number"},
 	},
 	{
-		Key:     "mpesa_transaction_code",
-		Name:    "M-PESA transaction code",
-		Pattern: regexp.MustCompile(`\b[A-Z]{2}[A-Z0-9]{8}\b`),
+    Key:         "mpesa_transaction_code",
+    Name:        "M-PESA transaction code",
+    Pattern:     regexp.MustCompile(`(?i)\b[A-Z]{2}[A-Z0-9]{8}\b`),
+    ContextCues: []string{"mpesa", "m-pesa", "tx id", "transaction code", "ref:", "receipt no", "confirmation code"},
 	},
 	{
-		Key:     "kenyan_phone_number",
-		Name:    "Kenyan phone number",
-		Pattern: regexp.MustCompile(`\b(?:\+254|0)7\d{8}\b`),
+    Key:         "kenyan_phone_number",
+    Name:        "Kenyan phone number",
+    Pattern:     regexp.MustCompile(`\b(?:\+?254|0)[17]\d{8}\b`),
+    ContextCues: []string{"phone", "mobile", "tel", "contact", "call", "sms", "whatsapp", "no."},
 	},
 }
 
