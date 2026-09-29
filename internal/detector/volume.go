@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 )
-
+// testing the internet connection 
 // VolumeRule flags an identity making more than Threshold requests
 // within Window. Purely in-memory — a restart resets counts, an
 // acceptable trade-off since this rule's whole point is speed, not
