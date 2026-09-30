@@ -23,7 +23,7 @@ func InsertIdentity(ctx context.Context, db *pgxpool.Pool, i Identity) error {
 }
 
 // GetIdentityByKeyHash is what the proxy will call on every incoming
-// request in Phase 5 — hot path, keeps it to a single indexed lookup.
+// request later keeps it to a single indexed lookup.
 func GetIdentityByKeyHash(ctx context.Context, db *pgxpool.Pool, keyHash string) (*Identity, error) {
 	var i Identity
 	err := db.QueryRow(ctx,

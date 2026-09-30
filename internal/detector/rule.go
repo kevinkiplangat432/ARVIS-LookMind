@@ -2,8 +2,7 @@ package detector
 
 import "context"
 
-// Flag is what a Rule emits when it thinks something is off. Category
-// and Severity map directly onto the anomalies table's columns.
+// Flag is what a Rule emits when it thinks something is off. Category and Severity map directly onto the anomalies table's columns.
 type Flag struct {
 	Rule     string
 	Category string
@@ -11,9 +10,8 @@ type Flag struct {
 	Detail   string
 }
 
-// SyncRule runs before a request is forwarded and must be fast — it
-// blocks the caller's request. Only cheap, in-memory checks belong
-// here.
+// SyncRule runs before a request is forwarded and must be fast 
+// it blocks the caller's request. Only cheap, in-memory checks belong here.
 type SyncRule interface {
 	CheckSync(ctx context.Context, identityID, model string) []Flag
 }
