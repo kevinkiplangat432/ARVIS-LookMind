@@ -75,6 +75,17 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	syncFlags := p.detector.CheckSync(ctx, identity.ID, model)
 
+	if isStreaming(requestBodyBytes) {
+		blocked, err := policy.ListBlockedTopics(ctx, p.rdb)
+		if err != nil {
+			p.logger.Error("failed to fetch blocked topics for streaming check", "error", err.Error())
+			blocked = nil
+
+		}
+		p.serveStreaming(w, r, identity, provider, model, requestBodyBytes, blocked, start)
+		return
+	}
+
 	// Tokenization fails CLOSED, deliberately the opposite of policy's
 	// fail-open Redis behavior above. A Redis outage during a policy
 	// check means one request goes unchecked — bad, but recoverable.

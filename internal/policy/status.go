@@ -9,11 +9,11 @@ import (
 )
 
 type BudgetStatus struct {
-	Scope       BudgetScope
-	ID          string
-	Budget      Budget
-	DailyUsed   int
-	MonthlyUsed int
+    Scope       BudgetScope `json:"scope"`
+    ID          string      `json:"id"`
+    Budget      Budget      `json:"budget"`
+    DailyUsed   int         `json:"daily_used"`
+    MonthlyUsed int         `json:"monthly_used"`
 }
 
 // ListBudgetStatuses scans every configured budget key and pairs each

@@ -1,0 +1,7 @@
+packages:
+  - path: "github.com/kevinkiplangat432/arvis/internal/api/handlers"
+    output_path: "./client/src/types/handlers.ts"
+  - path: "github.com/kevinkiplangat432/arvis/internal/store"
+    output_path: "./client/src/types/store.ts"
+  - path: "github.com/kevinkiplangat432/arvis/internal/policy"
+    output_path: "./client/src/types/policy.ts"
