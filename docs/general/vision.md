@@ -12,7 +12,7 @@
 
 ## The Problem
 
-Organisations are deploying AI — LLM-powered assistants, agents, internal tools, automated workflows — faster than they can govern it.
+Organisations are deploying AI, LLM-powered assistants, agents, internal tools, automated workflows — faster than they can govern it.
 
 The gap is not in the models. The gap is in the infrastructure around the models.
 

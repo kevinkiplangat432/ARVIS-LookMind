@@ -1,4 +1,4 @@
-<!-- markdownlint-disable MD033 MD041 MD036-->
+<!-- markdownlint-disable-->
 <p align="center">
   <img src="../LookMind.png" alt="LookMind" width="300" />
 </p>
@@ -16,7 +16,7 @@ ARVIS did not begin as a proxy.
 
 It started on **23 February 2026** from a single observation:
 
-As AI agents become more autonomous, organisations gain productivity but lose visibility. Agents make decisions, call tools, access data, and interact with external systems — yet most organisations have no reliable way to monitor, audit, or govern what those agents are actually doing.
+As AI agents become more autonomous, organisations gain productivity but lose visibility. Agents make decisions, call tools, access data, and interact with external systems, yet most organisations have no reliable way to monitor, audit, or govern what those agents are actually doing.
 
 The question that started everything:
 
@@ -58,13 +58,13 @@ A fundamental limitation became clear during development.
 
 **An SDK requires adoption.**
 
-Every application, every agent, every framework, every team must explicitly integrate it before governance can occur. This creates friction at the point of maximum resistance — engineering teams already building with AI tooling do not want to add another dependency before they can ship.
+Every application, every agent, every framework, every team must explicitly integrate it before governance can occur. This creates friction at the point of maximum resistance, engineering teams already building with AI tooling do not want to add another dependency before they can ship.
 
 The insight:
 
 > The best governance layer is one that organisations do not have to manually integrate.
 
-Instead of embedding control inside every agent, control could sit at the infrastructure boundary — between the application and the AI provider. Every request passes through regardless of what SDK the agent uses, what language it is written in, or how much the engineering team cares about governance.
+Instead of embedding control inside every agent, control could sit at the infrastructure boundary, between the application and the AI provider. Every request passes through regardless of what SDK the agent uses, what language it is written in, or how much the engineering team cares about governance.
 
 This changed everything about the architecture.
 
@@ -116,4 +116,3 @@ Organisations deploying AI systems need visibility, auditability, and control �
 
 The architecture moved from SDK to proxy. The mission did not move at all.
 
-<!-- markdownlint-disable MD041 -->
