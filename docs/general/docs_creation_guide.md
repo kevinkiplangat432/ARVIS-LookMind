@@ -44,10 +44,50 @@ What is here is mostly cross-cutting system design,architecture diagrams and hig
 The file name often always capture what is talks about, for instance auth_and_identity as you probably have guessed talks about the authentication and identity features.
 
 ##### The docs/ should cover this main areas.
-1. **Document the "WHY" and "Trade-offs" Never just the what**  reason is anyone can just read the code to see what was built. The **docs/** folder exists to record why it was built that way and what alternative options were rejected.
+1. **Document the "WHY" and "Trade-offs" Never just the what**  reason is, anyone can just read the code to see what was built. The **docs/** folder exists to record why it was built that way and what alternative options were rejected.
 
 2. **Provide a 30-second Mental Model (Visula + Text)** Every docs/ feature should allow a new hire to grasp the whole system in under a minute before reading deep details.
 include: 
 - The core job, what exact business problem does this subsystem solve?
 - A System Flow Diagram  showing how data enters, gets processed and where it lands.
 - Primary Owners & dependencies: what does it touch (stripe, redis etc)
+
+3. **Define invariants and failure scenarios** Describe how the system behaves when things go wrong. This how you will save massive amounts of debugging time.
+- **Hard invariants** What conditions must never occur under any circumstances? for example "An order can never ne marked "shipped" without a valid Payment ID"
+
+- **Failure modes & Recovery** What happens if the database goes down mid-transaction? What happens if an upstream API times out? Is the Operation retryable or does it dead-letter?
+
+>This examples are obviously not fit to our system so don't go thinking we are amazon.
+
+4. **Specify Operating & Maintenance Procedures** Documentation should provide actionable guidance when a incident occurs or when a team member needs to perform a standard operating task.
+
+Every core feature file in docs/ shouled include:
+- **How to test** Specific commands or local setups needed to test this feature manually or via automated suites.
+- **Monitoring & alerts** Which metric or error log indicates this feature us failing in production?
+- **Common Runbooks/Standard Operating Procedure(SOP)** Step-by-step instructions for common operational task (e.g "How to manually invalidate a customer account" or "How to replay failed webhooks")
+
+The following is a suggested template"
+```markdown
+# [Feature / Subsystem Name]
+
+## 1. High-Level Overview
+- **Purpose:** Brief description of what this does and why it exists.
+- **Key Dependencies:** Services, databases, or external APIs involved.
+
+## 2. Architecture & Data Flow
+[ Insert Mermaid.js chart or simple ASCII data flow diagram here ]
+
+## 3. Key Technical Decisions & Trade-Offs
+- Why we built it this way instead of [Alternative X].
+- Known limitations or performance constraints.
+
+## 4. Invariants & Security
+- Non-negotiable rules that must never break.
+- How sensitive data is handled.
+
+## 5. Failure Modes & Operational Guidance
+- What fails if Service X goes down?
+- How to test locally and troubleshoot issues.
+
+```
+
