@@ -152,19 +152,16 @@ The rules:
 Examples of the tone we want:
 
 ```go
-// Keys are shown once. We cannot recover them. We are a security
-// product, not a magician.
+// Keys are shown once. We cannot recover them. We are a security product, not a magician.
 ```
 
 ```go
-// Tokenization fails closed. Sending a customer's national ID to a
-// third party is not "degraded service", it is a headline.
+// Tokenization fails closed. Sending a customer's national ID to a third party is not "degraded service", it is a headline.
 ```
 
 ```go
 // Redis down during a policy check: fail open. Annoying, recoverable.
-// Do not copy this behavior into tokenization. See above, and then
-// see a therapist.
+// Do not copy this behavior into tokenization. See above, and then see a therapist.
 ```
 
 Examples of the tone we do not want:
