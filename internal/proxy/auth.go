@@ -31,8 +31,8 @@ func authenticate(ctx context.Context, db *pgxpool.Pool, r *http.Request) (*stor
 		return nil, ErrMissingKey
 	}
 
-	hashkey := auth.HashKey(rawKey)
-	identity, err := store.GetIdentityByKeyHash(ctx, db, hashkey)
+	hash := auth.HashKey(rawKey)
+	identity, err := store.GetIdentityByKeyHash(ctx, db, hash)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrUnknownKey
