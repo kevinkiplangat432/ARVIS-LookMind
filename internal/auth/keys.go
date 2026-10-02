@@ -8,10 +8,10 @@ package auth
 import (
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/hex"
 	"fmt"
 	"strings"
-	"crypto/subtle"
 )
 
 const keyPrefix = "arvis_"
@@ -43,7 +43,7 @@ func HashKey(rawOrSecret string) string {
 	return hex.EncodeToString(sum[:])
 }
 
-// EqualHashes compares two hex hashes in constant time to prevent timing leaks.
+
 func EqualHashes(hashA, hashB string) bool {
 	return subtle.ConstantTimeCompare([]byte(hashA), []byte(hashB)) == 1
 }
