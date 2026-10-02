@@ -1,93 +1,190 @@
 <!--markdownlint-disable-->
-# A guide to documentations in this codebase.
+# ARVIS Engineering Documentation Standard
 
-There are two signature levels for documentation in this codebase unless you have choosen that you should have your own too ( which is okay) but i know two.
+This document was written in 2026, before the first hire, when the whole company was two people and a Postgres container. We wrote the standard first because habits set in the first month become culture by the first year, and culture is very hard to refactor.
 
+If you are reading this, you are part of the team that inherited it. Follow it, argue with it, improve it. Do not ignore it.
 
-## Top-level In-file comments.
-This is the second type of documentation.
-This are comments that sit at the very beginning of a file/package( **above *package auth* or at the top of a module file**). Their job is to tell a developer reading the code why this file exists and what rules must never be broken.
+## 1. Principles
 
-##### Top level  In-file comments should cover this 4 key areas:
-1. **The purpose of the file** - This is a high level overview of what this file is for, what it does and why it exists.
-2. **The rules of the file** - This is a list of rules that must never be broken, for instance if this file is a utility file for the auth module then it should not have any references to the database or any other modules.
-3. **The dependencies of the file** - This is a list of all the dependencies that 
-this file has, for instance if this file is a utility file for the auth module then it should have a dependency on the auth module but not on any other modules.
-4. **The usage of the file** - This is a list of all the ways this 
-file can be used, for instance if this file is a utility file for the auth module then it should have a usage section that explains how to use the functions in this file.
-5. **Thread Safety & Execution Guarantees** Is this code safe for concurrent gouroutines/threads? is it a pure utility package, or does it hold global state?
+1. **Docs are part of the code.** A change that alters behavior and leaves the docs wrong is an incomplete change. Reviewers reject it the same way they reject a failing test.
+2. **Explain why, not what.** Anyone can read the code to see what was built. The code cannot tell you what we rejected, what we feared, or what broke at 2am in the past. Only we can write that down.
+3. **Write for a stranger.** The reader has no context, no Slack history, and a deadline. Be clear first, clever second.
+4. **Stale docs are bugs.** A wrong comment is worse than no comment, because it lies with confidence. File it and fix it like any other bug.
+5. **Be readable, not boring.** Documentation nobody finishes protects nobody. Voice is allowed, and encouraged, within the rules in section 7.
+
+## 2. How We Work: One Feature, End to End
+
+Do not document three features to finish one file. Follow one feature completely, then move on.
+
+1. Trace the feature end to end: route, handler, store, types, errors.
+2. Write its `docs/<feature>.md` first.
+3. Write the package header for every package the feature touches, general things only.
+4. Comment the functions and sections the feature actually uses.
+5. Write or update the tests for every file you consider finished.
+
+If a file is shared by several features, document only the part you traced and say so with a coverage line (section 3). A file must never pretend to be fully documented when it is not.
+
+Full documentation of a file is never a single sitting. It accumulates, one traced feature at a time. That is a feature of the process, not a gap in it.
+
+## 3. Level One: In-File Comments
+
+Every file with code has a package header and comments on its non obvious functions. Not just the security files, not just the famous ones. The boring utility file you wrote on a Friday is exactly the one someone will debug on a Monday.
+
+### The package header
+
+It sits above `package x`. It tells the reader why the file exists and what must never break.
+
+1. **Purpose:** what it is for and why it exists.
+2. **Rules:** the invariants that must never be broken.
+3. **Dependencies:** what it uses, and what it must never import.
+4. **Usage:** who calls it, and how.
+5. **Thread safety:** pure and stateless, or holding global state. Safe for concurrent goroutines, or not.
+6. **Docs pointer:** the `docs/` file that explains the bigger picture.
+7. **Coverage line (partial files only):** which feature is documented so far.
 
 ```go
-// Package auth provides cryptographic primitives for API key generation,
-// hashing, and request token validation across ARVIS services.
+// Package auth provides API key generation and hashing for ARVIS machine
+// callers. Human SSO is out of scope.
 //
-// Critical Security Invariants:
-//  - Raw API keys MUST NEVER be written to logs, cached in memory beyond initial issuance,
-//    or stored in plain text within persistence layers.
-//  - Only the deterministic SHA-256 digest (produced by HashKey) may be stored or queried.
+// Rules that must never be broken:
+//  1. Raw keys are never logged, persisted, or kept after issuance.
+//  2. Only the output of HashKey is stored or queried.
+//  3. This package never touches the database, HTTP, or config.
 //
-// Usage & Thread Safety:
-//  - All functions in this package are stateless, pure, and safe for concurrent execution.
-//  - Shared across both identity management CLI tools and incoming edge proxy middleware.
-
+// Dependencies: standard library only.
+// Usage: cmd/identity at issuance, proxy/auth.go on every request.
+// Thread safety: stateless, safe for concurrent use.
+//
+// Docs: docs/auth_and_identity.md
 package auth
 ```
 
+A partial file carries an honest label:
 
-## The primary documentation  (docs/)
-While in-file comments explain code execution and invariants, your **docs/** folder explains how systems fit together.
-
-This is the documentation you are also reading right now it is a file that "talks" about another file and in this codebase we are using the .md file extension. 
-
-What is here is mostly cross-cutting system design,architecture diagrams and high level feature guides. 
-
-The file name often always capture what is talks about, for instance auth_and_identity as you probably have guessed talks about the authentication and identity features.
-
-##### The docs/ should cover this main areas.
-1. **Document the "WHY" and "Trade-offs" Never just the what**  reason is, anyone can just read the code to see what was built. The **docs/** folder exists to record why it was built that way and what alternative options were rejected.
-
-2. **Provide a 30-second Mental Model (Visula + Text)** Every docs/ feature should allow a new hire to grasp the whole system in under a minute before reading deep details.
-include: 
-- The core job, what exact business problem does this subsystem solve?
-- A System Flow Diagram  showing how data enters, gets processed and where it lands.
-- Primary Owners & dependencies: what does it touch (stripe, redis etc)
-
-3. **Define invariants and failure scenarios** Describe how the system behaves when things go wrong. This how you will save massive amounts of debugging time.
-- **Hard invariants** What conditions must never occur under any circumstances? for example "An order can never ne marked "shipped" without a valid Payment ID"
-
-- **Failure modes & Recovery** What happens if the database goes down mid-transaction? What happens if an upstream API times out? Is the Operation retryable or does it dead-letter?
-
->This examples are obviously not fit to our system so don't go thinking we are amazon.
-
-4. **Specify Operating & Maintenance Procedures** Documentation should provide actionable guidance when a incident occurs or when a team member needs to perform a standard operating task.
-
-Every core feature file in docs/ shouled include:
-- **How to test** Specific commands or local setups needed to test this feature manually or via automated suites.
-- **Monitoring & alerts** Which metric or error log indicates this feature us failing in production?
-- **Common Runbooks/Standard Operating Procedure(SOP)** Step-by-step instructions for common operational task (e.g "How to manually invalidate a customer account" or "How to replay failed webhooks")
-
-The following is a suggested template"
-```markdown
-# [Feature / Subsystem Name]
-
-## 1. High-Level Overview
-- **Purpose:** Brief description of what this does and why it exists.
-- **Key Dependencies:** Services, databases, or external APIs involved.
-
-## 2. Architecture & Data Flow
-[ Insert Mermaid.js chart or simple ASCII data flow diagram here ]
-
-## 3. Key Technical Decisions & Trade-Offs
-- Why we built it this way instead of [Alternative X].
-- Known limitations or performance constraints.
-
-## 4. Invariants & Security
-- Non-negotiable rules that must never break.
-- How sensitive data is handled.
-
-## 5. Failure Modes & Operational Guidance
-- What fails if Service X goes down?
-- How to test locally and troubleshoot issues.
-
+```go
+// Coverage: only the auth path is documented so far.
+// See docs/auth_and_identity.md. The rest is uncharted territory.
 ```
 
+### Function and inline comments
+
+1. Short and descriptive. One or two lines, not an essay.
+2. Why, not what. The code already says what.
+3. Always comment the surprising: fail open versus fail closed, ordering that matters, security reasoning, anything that looks wrong but is deliberate.
+4. Never restate the function name. "HashKey hashes a key" has helped nobody in history.
+
+## 4. Level Two: The docs/ Folder
+
+In-file comments explain the code and its invariants. The `docs/` folder explains how systems fit together. File names say what is inside, for example `auth_and_identity.md`.
+
+Every feature doc covers four things:
+
+1. **The why and the trade-offs.** What we built, why, and which alternatives we rejected and why. This is the part nobody can reconstruct later.
+2. **A 30 second mental model.** The core business problem, a flow diagram (Mermaid or ASCII), and the dependencies it touches. A new hire should grasp the whole subsystem in under a minute.
+3. **Invariants and failure scenarios.** What must never happen, and what happens when Postgres, Redis, or a provider goes down. For every failure, say whether it fails open or closed, and justify it.
+4. **Operating procedures.** How to test it, which log or metric tells you it is failing, and step by step runbooks for common tasks.
+
+Template:
+
+```markdown
+# [Feature or Subsystem Name]
+
+## 1. High-Level Overview
+- **Purpose:** what this does and why it exists.
+- **Key Dependencies:** services, databases, external APIs.
+
+## 2. Architecture and Data Flow
+[Mermaid or ASCII diagram]
+
+## 3. Key Technical Decisions and Trade-Offs
+- Why we built it this way instead of [Alternative X].
+- Known limitations.
+
+## 4. Invariants and Security
+- Rules that must never break.
+- How sensitive data is handled.
+
+## 5. Failure Modes and Operational Guidance
+- What fails if Service X goes down.
+- How to test, monitor, and troubleshoot.
+- Runbooks for common tasks.
+```
+
+Every feature doc is listed in `docs/README.md`, so the state of our documentation is visible at a glance:
+
+```markdown
+| Feature | Docs file | Package comments | Tests | Status |
+|---|---|---|---|---|
+| Auth and identity | auth_and_identity.md | done | keys done | in progress |
+```
+
+## 5. Tests
+
+A file is not finished being refactored until it has a `_test.go`.
+
+1. Table driven tests where it fits.
+2. Test behavior and invariants, not implementation details.
+3. Every rule in a package header gets at least one test that fails if the rule breaks. A rule with no test is a wish.
+4. Test the failure paths. Bad input, empty input, and the input the original author never imagined.
+
+## 6. Keeping Docs Alive
+
+1. Behavior change and doc change ship in the same pull request.
+2. If you read a doc and it is wrong, fix it in your next commit. Do not leave a note for "someone".
+3. When you trace a feature and find the docs already cover it, extend them rather than writing a second version.
+4. Delete docs that describe things that no longer exist. History lives in git, not in the docs.
+
+## 7. Voice and Humour
+
+We write with personality. Documentation nobody enjoys reading is documentation nobody reads, and unread docs protect no one. The tradition here is blunt, vivid, and a little irreverent, in the spirit of the best engineering writing: say the true thing clearly, and make it stick.
+
+The rules:
+
+1. **State the rule plainly first.** Humour comes after clarity, never instead of it. A reader in a hurry must get the rule even if they miss the joke.
+2. **The delete test.** Remove the joke. If the comment is no longer complete and correct, the joke was carrying weight it should not carry.
+3. **The joke must teach.** The best humour makes a rule memorable. If it only shows off, cut it.
+4. **Punch at code, mistakes, and our past selves.** Never at people, teams, customers, or anyone's background.
+5. **Runbooks stay plain.** During an incident, nobody wants wit. Steps are steps.
+6. **Short.** A good joke fits in a line. If it needs a paragraph, it is a blog post.
+7. **Keep it timeless.** No jokes that depend on a meme, a news cycle, or an inside reference only three people understand. The reader in five years should still get it.
+
+Examples of the tone we want:
+
+```go
+// Keys are shown once. We cannot recover them. We are a security product, not a magician.
+```
+
+```go
+// Tokenization fails closed. Sending a customer's national ID to a third party is not "degraded service", it is a headline.
+```
+
+```go
+// Redis down during a policy check: fail open. Annoying, recoverable.
+// Do not copy this behavior into tokenization. See above, and then see a therapist.
+```
+
+Examples of the tone we do not want:
+
+1. A riddle where the invariant should be.
+2. Sarcasm aimed at a colleague's old code.
+3. A joke so clever that nobody can tell whether the rule is real.
+
+## 8. Reviewer Checklist
+
+Before approving a pull request that touches a feature, confirm:
+
+1. The `docs/` file exists, is accurate, and is listed in the index.
+2. Every package touched has a header, and partial files carry a coverage line.
+3. Surprising decisions have a short why comment.
+4. Files considered finished have tests, and every package rule has a test behind it.
+5. Nothing in the docs is now false because of this change.
+6. The humour, if present, passes section 7.
+
+## Closing Note
+
+Rules like these are boring to write and priceless to inherit. Somewhere in the future, an engineer will open a file at 2am, find a clear header, a clear why, and a line that makes them smile, and they will fix the problem faster because of it. That engineer is why this document exists.
+
+Write for them. 
+
+**_Author kevin Your CEO or CTO or I Choose a different Path_**
