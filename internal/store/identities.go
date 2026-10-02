@@ -35,7 +35,7 @@ func GetIdentityByKeyHash(ctx context.Context, db *pgxpool.Pool, keyHash string)
 	return &i, nil
 }
 
-// GetIdentityByID is the audit export's lookup — reports are usually
+// GetIdentityByID is the audit export's lookup, reports are usually
 // requested by identity ID (from the dashboard or CLI), not by key
 // hash the way the proxy's auth path needs.
 func GetIdentityByID(ctx context.Context, db *pgxpool.Pool, id string) (*Identity, error) {
