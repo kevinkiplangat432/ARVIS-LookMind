@@ -3,9 +3,11 @@ package proxy
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/kevinkiplangat432/arvis/internal/auth"
@@ -29,8 +31,16 @@ func authenticate(ctx context.Context, db *pgxpool.Pool, r *http.Request) (*stor
 		return nil, ErrMissingKey
 	}
 
-	identity, err := store.GetIdentityByKeyHash(ctx, db, auth.HashKey(rawKey))
+	hash := auth.HashKey(rawKey)
+	identity, err := store.GetIdentityByKeyHash(ctx, db, hash)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrUnknownKey
+		}
+		return nil, fmt.Errorf("identity lookup failed: %w", err)
+	}
+
+	if !auth.EqualHashes(identity.KeyHash, hash) {
 		return nil, ErrUnknownKey
 	}
 	return identity, nil
