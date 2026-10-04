@@ -34,9 +34,9 @@ var (
 	ErrAuthUnavailable = errors.New("authentication temporarily unavailable")
 )
 
-// authenticate resolvees the request's Bearer key to an identity.
+// authenticate resolves the request's Bearer key to an identity.
 // Unknown keys are the caller's problem (401). A failing database is ours.
-// and telling a customer their key is wrong while Postgres is rude
+// and telling a customer their key is wrong while Postgres burns, is rude.
 func authenticate(ctx context.Context, db *pgxpool.Pool, r *http.Request) (*store.Identity, error) {
 	header := r.Header.Get("Authorization")
 	if !strings.HasPrefix(header, "Bearer ") {
