@@ -28,6 +28,8 @@ type Identity struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+// InsertIdentity stores a new identity. The caller supplies the hash,
+// never the raw key.
 func InsertIdentity(ctx context.Context, db *pgxpool.Pool, i Identity) error {
 	_, err := db.Exec(ctx,
 		`INSERT INTO identities (id, name, key_hash, created_at) VALUES ($1,$2,$3,$4)`,
@@ -36,8 +38,9 @@ func InsertIdentity(ctx context.Context, db *pgxpool.Pool, i Identity) error {
 	return err
 }
 
-// GetIdentityByKeyHash is what the proxy will call on every incoming
-// request later keeps it to a single indexed lookup.
+// GetIdentityByKeyHash is  the proxy's hot path, hit on every request.
+// It expects a unique index on key_hash: one row or none.
+// A miss returns pgx.ErrNoRows, any other error means the lookup itself failed.
 func GetIdentityByKeyHash(ctx context.Context, db *pgxpool.Pool, keyHash string) (*Identity, error) {
 	var i Identity
 	err := db.QueryRow(ctx,
@@ -49,9 +52,8 @@ func GetIdentityByKeyHash(ctx context.Context, db *pgxpool.Pool, keyHash string)
 	return &i, nil
 }
 
-// GetIdentityByID is the audit export's lookup, reports are usually
-// requested by identity ID (from the dashboard or CLI), not by key
-// hash the way the proxy's auth path needs.
+// GetIdentityByID serves the audit export, where reports are requested by
+// identity ID (dashboard or CLI) and not by key hash.
 func GetIdentityByID(ctx context.Context, db *pgxpool.Pool, id string) (*Identity, error) {
 	var i Identity
 	err := db.QueryRow(ctx,
