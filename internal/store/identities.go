@@ -1,3 +1,17 @@
+//identities.go stores and fetches ARVIS identities, the employees and services that own an API key.
+// 
+// Rules that must never be broken:
+// 1. Only the key hash is stored. A raw key never reaches this file.
+// 2. KeyHash is never serialized. It stays inside the process.
+// 3. A lookup miss returns pgx.ErrNoRows untouched. Proxy/auth.go relies on it to tell "unknown key " apart from "database down".
+// 4. Queries are parameterized. No string building, ever.
+//
+// Dependencies: pgx only. Must never import auth, proxy, or config.
+// Usage: GetIdentityByKeyHash on every proxied request, InsertIdentity from the identity CLI, GetIdentityByID from the audit export.
+// Thread Safety: stateless, safe for concurrent use. The pool does its own locking.
+//
+// Docs: docs/auth_and_identity.md
+
 package store
 
 import (
