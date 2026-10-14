@@ -3,6 +3,7 @@ package proxy
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -47,7 +48,13 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	identity, err := authenticate(ctx, p.db, r)
 	if err != nil {
-		p.writeError(w, http.StatusUnauthorized, err)
+		if errors.Is(err, ErrMissingKey) || errors.Is(err, ErrUnknownKey) {
+
+			p.writeError(w, http.StatusUnauthorized, err)
+			return
+		}
+		p.logger.Error("authentication lookup failed", "error", err.Error())
+		p.writeError(w, http.StatusServiceUnavailable, ErrAuthUnavailable)
 		return
 	}
 

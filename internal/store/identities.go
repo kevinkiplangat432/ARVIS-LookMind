@@ -1,3 +1,17 @@
+//identities.go stores and fetches ARVIS identities, the employees and services that own an API key.
+// 
+// Rules that must never be broken:
+// 1. Only the key hash is stored. A raw key never reaches this file.
+// 2. KeyHash is never serialized. It stays inside the process.
+// 3. A lookup miss returns pgx.ErrNoRows untouched. Proxy/auth.go relies on it to tell "unknown key " apart from "database down".
+// 4. Queries are parameterized. No string building, ever.
+//
+// Dependencies: pgx only. Must never import auth, proxy, or config.
+// Usage: GetIdentityByKeyHash on every proxied request, InsertIdentity from the identity CLI, GetIdentityByID from the audit export.
+// Thread Safety: stateless, safe for concurrent use. The pool does its own locking.
+//
+// Docs: docs/auth_and_identity.md
+
 package store
 
 import (
@@ -14,6 +28,8 @@ type Identity struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+// InsertIdentity stores a new identity. The caller supplies the hash,
+// never the raw key.
 func InsertIdentity(ctx context.Context, db *pgxpool.Pool, i Identity) error {
 	_, err := db.Exec(ctx,
 		`INSERT INTO identities (id, name, key_hash, created_at) VALUES ($1,$2,$3,$4)`,
@@ -22,8 +38,9 @@ func InsertIdentity(ctx context.Context, db *pgxpool.Pool, i Identity) error {
 	return err
 }
 
-// GetIdentityByKeyHash is what the proxy will call on every incoming
-// request later keeps it to a single indexed lookup.
+// GetIdentityByKeyHash is  the proxy's hot path, hit on every request.
+// It expects a unique index on key_hash: one row or none.
+// A miss returns pgx.ErrNoRows, any other error means the lookup itself failed.
 func GetIdentityByKeyHash(ctx context.Context, db *pgxpool.Pool, keyHash string) (*Identity, error) {
 	var i Identity
 	err := db.QueryRow(ctx,
@@ -35,9 +52,8 @@ func GetIdentityByKeyHash(ctx context.Context, db *pgxpool.Pool, keyHash string)
 	return &i, nil
 }
 
-// GetIdentityByID is the audit export's lookup, reports are usually
-// requested by identity ID (from the dashboard or CLI), not by key
-// hash the way the proxy's auth path needs.
+// GetIdentityByID serves the audit export, where reports are requested by
+// identity ID (dashboard or CLI) and not by key hash.
 func GetIdentityByID(ctx context.Context, db *pgxpool.Pool, id string) (*Identity, error) {
 	var i Identity
 	err := db.QueryRow(ctx,
