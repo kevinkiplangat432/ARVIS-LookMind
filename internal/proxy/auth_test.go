@@ -23,7 +23,7 @@ func TestAuthenticateRejectsBadHeaders(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodPost, "v1/chat/completions", nil)
+			req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
 			if tt.header != "" {
 				req.Header.Set("Authorization", tt.header)
 
