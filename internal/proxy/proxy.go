@@ -107,15 +107,11 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	outboundURL := provider.BaseURL + r.URL.Path
-	outbound, err := http.NewRequestWithContext(ctx, r.Method, outboundURL, io.NopCloser(bytes.NewReader(tokenizedBody)))
+	outbound, err := newOutboundRequest(ctx, r, provider, tokenizedBody)
 	if err != nil {
-		p.writeError(w, http.StatusInternalServerError, fmt.Errorf("failed to build outbound request: %w", err))
-		return
+	p.writeError(w, http.StatusInternalServerError, fmt.Errorf("failed to build outbound request: %w", err))
+	return
 	}
-	outbound.Header = r.Header.Clone()
-	outbound.Header.Set("Authorization", "Bearer "+provider.APIKey)
-
 	resp, err := p.client.Do(outbound)
 	if err != nil {
 		p.writeError(w, http.StatusBadGateway, fmt.Errorf("upstream provider %q unreachable: %w", provider.Name, err))
@@ -230,4 +226,18 @@ func (p *Proxy) writeError(w http.ResponseWriter, status int, err error) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	fmt.Fprintf(w, `{"error": %q}`, err.Error())
+}
+
+// newOutboundRequest builds the provider-bound request for the buffered
+// and streaming paths. It is the only place the caller's ARVIS key is
+// swapped for the provider key. A credential swap that lives in two
+// places will, eventually, live in one.
+func newOutboundRequest(ctx context.Context, r *http.Request, provider config.Provider, body []byte) (*http.Request, error) {
+	outbound, err := http.NewRequestWithContext(ctx, r.Method, provider.BaseURL+r.URL.Path, io.NopCloser(bytes.NewReader(body)))
+	if err != nil {
+		return nil, err
+	}
+	outbound.Header = r.Header.Clone()
+	outbound.Header.Set("Authorization", "Bearer "+provider.APIKey)
+	return outbound, nil
 }
