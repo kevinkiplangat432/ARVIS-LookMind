@@ -59,7 +59,11 @@ func HashKey(rawOrSecret string) string {
 	return hex.EncodeToString(sum[:])
 }
 
-// EqualHashes compares two hex hashes in constant time.
+// EqualHashes compares two hashes without letting their lengths shortcut
+// the result. Both inputs are hashed first, so the compare always sees
+// 32 bytes. Input length itself is not secret, only content is.
 func EqualHashes(hashA, hashB string) bool {
-	return subtle.ConstantTimeCompare([]byte(hashA), []byte(hashB)) == 1
+	a := sha256.Sum256([]byte(hashA))
+	b := sha256.Sum256([]byte(hashB))
+	return subtle.ConstantTimeCompare(a[:], b[:]) == 1
 }

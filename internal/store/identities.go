@@ -5,12 +5,18 @@
 // 2. KeyHash is never serialized. It stays inside the process.
 // 3. A lookup miss returns pgx.ErrNoRows untouched. Proxy/auth.go relies on it to tell "unknown key " apart from "database down".
 // 4. Queries are parameterized. No string building, ever.
+// 5. Deleting an identity is for rolling back an undelivered key only.
+//     Disabling a live key is revocation, which is a separate feature.
 //
 // Dependencies: pgx only. Must never import auth, proxy, or config.
-// Usage: GetIdentityByKeyHash on every proxied request, InsertIdentity from the identity CLI, GetIdentityByID from the audit export.
+// Usage: GetIdentityByKeyHash on every proxied request, InsertIdentity and
+// DeleteIdentity (rollback only) from the identity CLI, GetIdentityByID
+// from the audit export.
 // Thread Safety: stateless, safe for concurrent use. The pool does its own locking.
 //
 // Docs: docs/auth_and_identity.md
+
+
 
 package store
 
@@ -35,6 +41,14 @@ func InsertIdentity(ctx context.Context, db *pgxpool.Pool, i Identity) error {
 		`INSERT INTO identities (id, name, key_hash, created_at) VALUES ($1,$2,$3,$4)`,
 		i.ID, i.Name, i.KeyHash, i.CreatedAt,
 	)
+	return err
+}
+
+// DeleteIdentity removes an identity. Its only caller is the CLI rollback
+// for a key that was never delivered. It is not revocation: requests keep
+// their history but lose attribution (ON DELETE SET NULL).
+func DeleteIdentity(ctx context.Context, db *pgxpool.Pool, id string) error {
+	_, err := db.Exec(ctx, `DELETE FROM identities WHERE id = $1`, id)
 	return err
 }
 

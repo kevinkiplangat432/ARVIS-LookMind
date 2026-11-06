@@ -1,12 +1,33 @@
+// streaming.go relays Server-Sent Events from a provider to the caller
+// chunk by chunk, scanning a rolling window of the text and cutting the
+// stream if it matches a blocked topic.
+//
+// Rules that must never be broken:
+//  1. Reached only through ServeHTTP, after authenticate. No identity, no stream.
+//  2. The provider-bound request comes from newOutboundRequest, so the
+//     caller's ARVIS key never leaves ARVIS.
+//  3. Every logged stream carries the authenticated identity's ID.
+//  4. Each chunk is forwarded before it is scanned. The client never waits on the scan.
+//  5. Headers are sent once. A kill switch ends the stream, it cannot rewrite the status.
+//
+// Dependencies: config, policy, store, net/http.
+// Usage: called from Proxy.ServeHTTP when the request body sets "stream": true.
+// Thread safety: no state shared between calls, everything lives per request.
+//
+// Coverage: only the auth path is documented so far. The rest is uncharted territory.
+// Known gap: this path does not tokenize or detokenize (details below).
+//
+// Docs: docs/auth_and_identity.md
+
 package proxy
 
 import (
 	"bufio"
-	"bytes"
+	
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
+
 	"net/http"
 	"strings"
 	"time"
@@ -47,14 +68,13 @@ func isStreaming(body []byte) bool {
 func (p *Proxy) serveStreaming(w http.ResponseWriter, r *http.Request, identity *store.Identity, provider config.Provider, model string, requestBody []byte, blockedTopics []string, start time.Time) {
 	ctx := r.Context()
 
-	outboundURL := provider.BaseURL + r.URL.Path
-	outbound, err := http.NewRequestWithContext(ctx, r.Method, outboundURL, io.NopCloser(bytes.NewReader(requestBody)))
+	
+	outbound, err := newOutboundRequest(ctx, r, provider, requestBody)
 	if err != nil {
-		p.writeError(w, http.StatusInternalServerError, fmt.Errorf("failed to build outbound request: %w", err))
-		return
+	p.writeError(w, http.StatusInternalServerError, fmt.Errorf("failed to build outbound request: %w", err))
+	return
 	}
-	outbound.Header = r.Header.Clone()
-	outbound.Header.Set("Authorization", "Bearer "+provider.APIKey)
+	
 
 	resp, err := p.client.Do(outbound)
 	if err != nil {
@@ -120,7 +140,7 @@ func (p *Proxy) logKilledStream(identity *store.Identity, provider config.Provid
 
 	req := store.Request{
 		ID:         uuid.NewString(),
-		IdentityID: &identity.ID,
+		IdentityID: &identity.ID, // Attribution: every streamed request is logged against its authenticated identity.
 		Provider:   provider.Name,
 		Model:      model,
 		LatencyMs:  latencyMs,
@@ -156,7 +176,7 @@ func (p *Proxy) logStreamedRequest(identity *store.Identity, provider config.Pro
 	ctx := context.Background()
 	req := store.Request{
 		ID:         uuid.NewString(),
-		IdentityID: &identity.ID,
+		IdentityID: &identity.ID, // Attribution: every streamed request is logged against its authenticated identity.
 		Provider:   provider.Name,
 		Model:      model,
 		LatencyMs:  latencyMs,

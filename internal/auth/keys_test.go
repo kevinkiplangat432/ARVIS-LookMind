@@ -1,3 +1,13 @@
+// keys_test.go guards the rules in keys.go: stable hashing, prefix is
+// presentation only, unique random keys, EqualHashes agrees with ==.
+//
+// Not covered: constant time behavior. Timing cannot be asserted
+// reliably in a unit test, so it is enforced by construction and review.
+//
+// Run: go test ./internal/auth/...
+// Needs: nothing, no database or network.
+
+
 package auth
 
 import (
@@ -106,5 +116,21 @@ func TestEqualHashes(t *testing.T) {
 				t.Errorf("EqualHashes(%q, %q) = %v, want %v", tt.x, tt.y, got, tt.want)
 			}
 		})
+	}
+}
+func TestEqualHashesArbitraryStrings(t *testing.T) {
+	tests := []struct {
+		x, y string
+		want bool
+	}{
+		{"abc", "abc", true},
+		{"abc", "abd", false},
+		{"abc", "abcd", false},
+		{"abc", "", false},
+	}
+	for _, tt := range tests {
+		if got := EqualHashes(tt.x, tt.y); got != tt.want {
+			t.Errorf("EqualHashes(%q, %q) = %v, want %v", tt.x, tt.y, got, tt.want)
+		}
 	}
 }

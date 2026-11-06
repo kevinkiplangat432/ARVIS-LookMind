@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS idx_identities_key_hash ON identities(key_hash);

@@ -1,9 +1,24 @@
+// proxy.go is the HTTP entry point of ARVIS: authenticate, enforce policy,
+// forward to the provider, log what happened.
+//
+// Rules that must never be broken:
+//  1. authenticate runs first. No identity, no body read, no provider call.
+//  2. Provider-bound requests are built only by newOutboundRequest, so the
+//     caller's ARVIS key never leaves ARVIS.
+//  3. Failure posture is deliberate: policy check fails open, tokenization
+//     fails closed, detokenization fails open. See the comments in ServeHTTP.
+//
+// Usage: mounted as the proxy's http.Handler.
+// Thread safety: Proxy holds shared clients only, per request state is local.
+//
+// Coverage: only the auth path is documented so far. The rest is uncharted territory.
+// Docs: docs/auth_and_identity.md
+
 package proxy
 
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -48,14 +63,16 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	identity, err := authenticate(ctx, p.db, r)
 	if err != nil {
-		if errors.Is(err, ErrMissingKey) || errors.Is(err, ErrUnknownKey) {
-
-			p.writeError(w, http.StatusUnauthorized, err)
-			return
-		}
+	switch authErrorStatus(ctx, err) {
+	case 0:
+		p.logger.Debug("client canceled during authentication")
+	case http.StatusUnauthorized:
+		p.writeError(w, http.StatusUnauthorized, err)
+	default:
 		p.logger.Error("authentication lookup failed", "error", err.Error())
 		p.writeError(w, http.StatusServiceUnavailable, ErrAuthUnavailable)
-		return
+	}
+	return
 	}
 
 	provider, model, bodyReader, err := resolveProvider(p.cfg, r)
@@ -106,15 +123,11 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	outboundURL := provider.BaseURL + r.URL.Path
-	outbound, err := http.NewRequestWithContext(ctx, r.Method, outboundURL, io.NopCloser(bytes.NewReader(tokenizedBody)))
+	outbound, err := newOutboundRequest(ctx, r, provider, tokenizedBody)
 	if err != nil {
-		p.writeError(w, http.StatusInternalServerError, fmt.Errorf("failed to build outbound request: %w", err))
-		return
+	p.writeError(w, http.StatusInternalServerError, fmt.Errorf("failed to build outbound request: %w", err))
+	return
 	}
-	outbound.Header = r.Header.Clone()
-	outbound.Header.Set("Authorization", "Bearer "+provider.APIKey)
-
 	resp, err := p.client.Do(outbound)
 	if err != nil {
 		p.writeError(w, http.StatusBadGateway, fmt.Errorf("upstream provider %q unreachable: %w", provider.Name, err))
@@ -229,4 +242,18 @@ func (p *Proxy) writeError(w http.ResponseWriter, status int, err error) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	fmt.Fprintf(w, `{"error": %q}`, err.Error())
+}
+
+// newOutboundRequest builds the provider-bound request for the buffered
+// and streaming paths. It is the only place the caller's ARVIS key is
+// swapped for the provider key. A credential swap that lives in two
+// places will, eventually, live in one.
+func newOutboundRequest(ctx context.Context, r *http.Request, provider config.Provider, body []byte) (*http.Request, error) {
+	outbound, err := http.NewRequestWithContext(ctx, r.Method, provider.BaseURL+r.URL.Path, io.NopCloser(bytes.NewReader(body)))
+	if err != nil {
+		return nil, err
+	}
+	outbound.Header = r.Header.Clone()
+	outbound.Header.Set("Authorization", "Bearer "+provider.APIKey)
+	return outbound, nil
 }
