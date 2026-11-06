@@ -1,3 +1,19 @@
+// proxy.go is the HTTP entry point of ARVIS: authenticate, enforce policy,
+// forward to the provider, log what happened.
+//
+// Rules that must never be broken:
+//  1. authenticate runs first. No identity, no body read, no provider call.
+//  2. Provider-bound requests are built only by newOutboundRequest, so the
+//     caller's ARVIS key never leaves ARVIS.
+//  3. Failure posture is deliberate: policy check fails open, tokenization
+//     fails closed, detokenization fails open. See the comments in ServeHTTP.
+//
+// Usage: mounted as the proxy's http.Handler.
+// Thread safety: Proxy holds shared clients only, per request state is local.
+//
+// Coverage: only the auth path is documented so far. The rest is uncharted territory.
+// Docs: docs/auth_and_identity.md
+
 package proxy
 
 import (
