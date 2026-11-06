@@ -1,3 +1,14 @@
+// identities_test.go guards the rules in identities.go: KeyHash never
+// serializes, lookup misses return ErrNoRows, key_hash stays unique,
+// deletes remove only their own row.
+//
+// Not covered: the ON DELETE SET NULL link to requests. That lives in the
+// schema and is documented in docs/auth_and_identity.md.
+//
+// Run: go test ./internal/store/...
+// Needs: Postgres at TEST_DATABASE_URL. Database tests skip without it,
+// the JSON test always runs.
+
 package store
 
 import (
@@ -53,7 +64,7 @@ func newTestIdentity(t *testing.T, db *pgxpool.Pool) Identity {
 		t.Fatalf("InsertIdentity: %v", err)
 	}
 	t.Cleanup(func() {
-		db.Exec(context.Background(), `DELETE FROM identities WHERE id = $1`, i.ID)
+		DeleteIdentity(context.Background(), db, i.ID)
 	})
 	return i
 }
@@ -100,5 +111,25 @@ func TestInsertDuplicateKeyHashRejected(t *testing.T) {
 	if err := InsertIdentity(context.Background(), db, dup); err == nil {
 		db.Exec(context.Background(), `DELETE FROM identities WHERE id = $1`, dup.ID)
 		t.Error("duplicate key_hash was accepted")
+	}
+}
+
+func TestDeleteIdentityRemovesOnlyThatRow(t *testing.T) {
+	db := testDB(t)
+	ctx := context.Background()
+	keep := newTestIdentity(t, db)
+	gone := newTestIdentity(t, db)
+
+	if err := DeleteIdentity(ctx, db, gone.ID); err != nil {
+		t.Fatalf("DeleteIdentity: %v", err)
+	}
+	if _, err := GetIdentityByID(ctx, db, gone.ID); !errors.Is(err, pgx.ErrNoRows) {
+		t.Errorf("deleted identity still found, err = %v", err)
+	}
+	if _, err := GetIdentityByID(ctx, db, keep.ID); err != nil {
+		t.Errorf("unrelated identity was affected: %v", err)
+	}
+	if err := DeleteIdentity(ctx, db, gone.ID); err != nil {
+		t.Errorf("deleting a missing identity should not error: %v", err)
 	}
 }

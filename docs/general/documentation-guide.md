@@ -67,6 +67,35 @@ A partial file carries an honest label:
 // See docs/auth_and_identity.md. The rest is uncharted territory.
 ```
 
+### File headers in multi file packages
+
+When a package spans several files, separate the file header from the
+`package x` line with a blank line. Without the blank line, Go treats the
+comment as package documentation and merges it with every other file's.
+Only one file per package carries the true package comment.
+
+### Test file headers
+
+Test files get a shorter header. It covers four things:
+
+1. **Purpose:** which file or rules the tests guard.
+2. **Not covered:** what these tests deliberately do not prove, and why.
+3. **How to run:** the exact command.
+4. **Requirements:** database, environment variables, network, or nothing.
+
+```go
+// keys_test.go guards the rules in keys.go: stable hashing, prefix is
+// presentation only, unique random keys, EqualHashes agrees with ==.
+//
+// Not covered: constant time behavior. Timing cannot be asserted
+// reliably in a unit test, so it is enforced by construction and review.
+//
+// Run: go test ./internal/auth/...
+// Needs: nothing, no database or network.
+
+package auth
+```
+
 ### Function and inline comments
 
 1. Short and descriptive. One or two lines, not an essay.

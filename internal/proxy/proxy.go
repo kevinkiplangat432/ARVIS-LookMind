@@ -3,7 +3,6 @@ package proxy
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -48,14 +47,16 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	identity, err := authenticate(ctx, p.db, r)
 	if err != nil {
-		if errors.Is(err, ErrMissingKey) || errors.Is(err, ErrUnknownKey) {
-
-			p.writeError(w, http.StatusUnauthorized, err)
-			return
-		}
+	switch authErrorStatus(ctx, err) {
+	case 0:
+		p.logger.Debug("client canceled during authentication")
+	case http.StatusUnauthorized:
+		p.writeError(w, http.StatusUnauthorized, err)
+	default:
 		p.logger.Error("authentication lookup failed", "error", err.Error())
 		p.writeError(w, http.StatusServiceUnavailable, ErrAuthUnavailable)
-		return
+	}
+	return
 	}
 
 	provider, model, bodyReader, err := resolveProvider(p.cfg, r)
