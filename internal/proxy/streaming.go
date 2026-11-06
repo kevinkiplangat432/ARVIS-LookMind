@@ -140,7 +140,7 @@ func (p *Proxy) logKilledStream(identity *store.Identity, provider config.Provid
 
 	req := store.Request{
 		ID:         uuid.NewString(),
-		IdentityID: &identity.ID,
+		IdentityID: &identity.ID, // Attribution: every streamed request is logged against its authenticated identity.
 		Provider:   provider.Name,
 		Model:      model,
 		LatencyMs:  latencyMs,
@@ -176,7 +176,7 @@ func (p *Proxy) logStreamedRequest(identity *store.Identity, provider config.Pro
 	ctx := context.Background()
 	req := store.Request{
 		ID:         uuid.NewString(),
-		IdentityID: &identity.ID,
+		IdentityID: &identity.ID, // Attribution: every streamed request is logged against its authenticated identity.
 		Provider:   provider.Name,
 		Model:      model,
 		LatencyMs:  latencyMs,
